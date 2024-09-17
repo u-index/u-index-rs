@@ -15,14 +15,13 @@ pub mod sketchers;
 
 // TODO: Generalize the alphabet.
 // - Currently the underlying index is assumed to only support `u8` alphabet.
-// - Currently we only take `u8` alphabet as input. That should be extended to
-//   2-bit encoded data.
+// - Currently we only take `u8` encoded 2-bit alphabet as input. That should be extended to
+//   2-bit encoded data and full 8-bit alphabets.
 // TODO: Generalize underlying KmerVal and Pos types.
 // TODO: Streaming input
 // TODO: Rolling hash for O(1) checking.
 // TODO: True constant time checking?
 // TODO: Consider whether `Index` should own the input.
-// TODO: Compress the minimizer alphabet.
 // TODO: Use EF for minimizer locations.
 
 /// A reference to a sequence over a u8 alphabet.
@@ -84,11 +83,7 @@ pub struct UIndex<'s> {
 
 impl<'s> UIndex<'s> {
     /// 1. Sketch input to minimizer space.
-    /// 2. Build minimiser space sequence.
-    /// 2. (optionally) remap to smaller alphabet
-    /// 3. Concat the minimizer values.
-    /// 4. Reinterpret as underlying 2bit alphabet.
-    /// 5. Build underlying index.
+    /// 2. Build minimizer space index.
     pub fn build(
         seq: Seq<'s>,
         sketch_params: impl SketcherBuilder,
