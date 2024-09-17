@@ -1,4 +1,5 @@
 mod indices;
+mod sketchers;
 
 // Terminology and variables:
 // - Index: a datastructure that returns all locations where a pattern matches.
