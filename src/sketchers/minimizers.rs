@@ -29,7 +29,7 @@ impl MinimizerParams {
     }
 
     fn minimizers<'s>(&'s self, seq: Seq<'s>) -> impl Iterator<Item = (Pos, KmerVal)> + 's {
-        minimizers::simd::minimizer::minimizer_scalar_it::<false>(seq, self.k, self.w())
+        minimizers::simd::minimizer::minimizer_simd_it::<false>(seq, self.k, self.w())
             .dedup()
             .map(move |pos| {
                 let pos = pos as usize;
