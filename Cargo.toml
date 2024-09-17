@@ -1,0 +1,13 @@
+[package]
+name = "uindex"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+debug = true
+lto = "thin"
+incremental = true
+
+[dependencies]
+
+[dev-dependencies]
