@@ -116,3 +116,47 @@ impl<'s> UIndex<'s> {
         })))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_identity_simple() {
+        let seq = b"ACGTACGTACGTACGT";
+        let index = UIndex::build::<sketchers::Identity, indices::DivSufSortSaBuilder>(4, 4, seq);
+        let query = b"ACGT";
+        let mut occ = index.query(query).unwrap().collect::<Vec<_>>();
+        occ.sort();
+        assert_eq!(occ, vec![0, 4, 8, 12]);
+    }
+    #[test]
+    fn test_identity_positive() {
+        let seq = (0..1000000)
+            .map(|_i| rand::random::<u8>())
+            .collect::<Vec<_>>();
+        let index = UIndex::build::<sketchers::Identity, indices::DivSufSortSaBuilder>(4, 4, &seq);
+        for _ in 0..1000 {
+            let len = rand::random::<usize>() % 100;
+            let pos = rand::random::<usize>() % (seq.len() - len);
+            let query = &seq[pos..pos + len];
+            let occ = index.query(query).unwrap().collect::<Vec<_>>();
+            assert!(occ.len() > 0);
+            for &pos in &occ {
+                assert_eq!(&seq[pos..pos + len], query);
+            }
+        }
+    }
+    #[test]
+    fn test_identity_negative() {
+        let seq = (0..1000000)
+            .map(|_i| rand::random::<u8>())
+            .collect::<Vec<_>>();
+        let index = UIndex::build::<sketchers::Identity, indices::DivSufSortSaBuilder>(4, 4, &seq);
+        for _ in 0..1000 {
+            let len = 6;
+            let query = (0..len).map(|_i| rand::random::<u8>()).collect::<Vec<_>>();
+            let occ = index.query(&query).unwrap().collect::<Vec<_>>();
+            assert_eq!(occ.len(), 0);
+        }
+    }
+}
