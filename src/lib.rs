@@ -54,6 +54,14 @@ pub trait SketcherBuilder {
     fn sketch(&self, seq: Seq) -> (Self::Sketcher, MsSequence);
 }
 
+pub enum SketchError {
+    /// The sequence is too short to be sketched, and can not be searched.
+    TooShort,
+    /// The sequence was sketched, but contains unknown minimizers, and thus is
+    /// surely not contained in the text.
+    NotFound,
+}
+
 pub trait Sketcher {
     /// Take an input text, compute its minimizers, and compress those into the
     /// target `u8` alphabet. This could be done a few ways, e.g.:
@@ -61,7 +69,7 @@ pub trait Sketcher {
     /// - using a hash function to map the KmerVals to a smaller range.
     /// Also returns the position in `seq` of the first minimizer.
     /// Returns `None` when `seq` is too short to contain a minimizer.
-    fn sketch(&self, seq: Seq) -> Option<(MsSequence, usize)>;
+    fn sketch(&self, seq: Seq) -> Result<(MsSequence, usize), SketchError>;
 
     /// Take a position of a character in the minimizer space, and return its start position in the original sequence.
     /// Returns `None` when the position in the minimizer space text is not aligned with the size of the encoded minimizers.
@@ -98,9 +106,14 @@ impl<'s> UIndex<'s> {
     /// 1. Sketch query to minimizer space.
     /// 2. Query the minimizer space index.
     /// 3. Check all occurrences.
-    /// Returns `None` if the pattern is too short and does not contain a minimizer.
+    /// Returns `None` if the pattern is too short to contain a minimizer.
+    /// When the pattern contains an unknown minimizer, an empty iterator is returned.
     pub fn query<'p>(&'p self, pattern: Seq<'p>) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
-        let (ms_pattern, offset) = self.sketcher.sketch(pattern)?;
+        let (ms_pattern, offset) = match self.sketcher.sketch(pattern) {
+            Ok(x) => x,
+            Err(SketchError::TooShort) => return None,
+            Err(SketchError::NotFound) => return Some(Box::new(std::iter::empty())),
+        };
         let ms_occ = self.ms_index.query(&ms_pattern.0);
         Some(Box::new(ms_occ.filter_map(move |ms_pos| {
             // Checking:
@@ -180,23 +193,29 @@ mod test {
 
         let ms_index = indices::DivSufSortSa;
         let index = UIndex::build(&seq, sketchers::Identity, ms_index);
-        for l in [1, 10, 100] {
-            for k in [1, 2, 3, 4, 5, 6, 7, 8] {
-                if k > l {
-                    continue;
-                }
-                let sketcher = sketchers::MinimizerParams { l, k };
-                let uindex = UIndex::build(&seq, sketcher, ms_index);
-                for _ in 0..1000 {
-                    let len = l + rand::random::<usize>() % 100;
-                    let pos = rand::random::<usize>() % (seq.len() - len);
-                    let query = &seq[pos..pos + len];
 
-                    let mut index_occ = index.query(query).unwrap().collect::<Vec<_>>();
-                    let mut uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
-                    index_occ.sort();
-                    uindex_occ.sort();
-                    assert_eq!(index_occ, uindex_occ);
+        for remap in [false, true] {
+            for l in [1, 10, 100] {
+                for k in [1, 2, 3, 4, 5, 6, 7, 8] {
+                    if k > l {
+                        continue;
+                    }
+                    let sketcher = sketchers::MinimizerParams { l, k, remap };
+                    let uindex = UIndex::build(&seq, sketcher, ms_index);
+                    for _ in 0..1000 {
+                        let len = l + rand::random::<usize>() % 100;
+                        let pos = rand::random::<usize>() % (seq.len() - len);
+                        let query = &seq[pos..pos + len];
+
+                        let mut index_occ = index.query(query).unwrap().collect::<Vec<_>>();
+                        let mut uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+                        index_occ.sort();
+                        uindex_occ.sort();
+                        assert_eq!(
+                            index_occ, uindex_occ,
+                            "l {l} k {k} remap {remap} pos {pos} query {query:?}"
+                        );
+                    }
                 }
             }
         }
@@ -210,24 +229,26 @@ mod test {
         let ms_index = indices::DivSufSortSa;
         let index = UIndex::build(&seq, sketchers::Identity, ms_index);
 
-        for l in [1, 10, 100] {
-            for k in [1, 2, 3, 4, 5, 6, 7, 8] {
-                if k > l {
-                    continue;
-                }
-                let sketcher = sketchers::MinimizerParams { l, k };
-                let uindex = UIndex::build(&seq, sketcher, ms_index);
-                for _ in 0..1000 {
-                    let len = l + rand::random::<usize>() % 100;
-                    let query = &(0..len)
-                        .map(|_i| rand::random::<u8>() % 4)
-                        .collect::<Vec<_>>();
+        for remap in [false, true] {
+            for l in [1, 10, 100] {
+                for k in [1, 2, 3, 4, 5, 6, 7, 8] {
+                    if k > l {
+                        continue;
+                    }
+                    let sketcher = sketchers::MinimizerParams { l, k, remap };
+                    let uindex = UIndex::build(&seq, sketcher, ms_index);
+                    for _ in 0..1000 {
+                        let len = l + rand::random::<usize>() % 100;
+                        let query = &(0..len)
+                            .map(|_i| rand::random::<u8>() % 4)
+                            .collect::<Vec<_>>();
 
-                    let mut index_occ = index.query(query).unwrap().collect::<Vec<_>>();
-                    let mut uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
-                    index_occ.sort();
-                    uindex_occ.sort();
-                    assert_eq!(index_occ, uindex_occ);
+                        let mut index_occ = index.query(query).unwrap().collect::<Vec<_>>();
+                        let mut uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+                        index_occ.sort();
+                        uindex_occ.sort();
+                        assert_eq!(index_occ, uindex_occ);
+                    }
                 }
             }
         }

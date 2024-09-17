@@ -2,7 +2,7 @@ mod minimizers;
 
 pub use minimizers::MinimizerParams;
 
-use crate::{MsSequence, Seq, Sketcher, SketcherBuilder};
+use crate::{MsSequence, Seq, SketchError, Sketcher, SketcherBuilder};
 
 /// 'Sketch' the sequence to itself.
 /// Convenient for testing purposes.
@@ -17,8 +17,8 @@ impl SketcherBuilder for Identity {
 }
 
 impl Sketcher for Identity {
-    fn sketch(&self, seq: Seq) -> Option<(MsSequence, usize)> {
-        Some((MsSequence(seq.to_vec()), 0))
+    fn sketch(&self, seq: Seq) -> Result<(MsSequence, usize), SketchError> {
+        Ok((MsSequence(seq.to_vec()), 0))
     }
 
     fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize> {

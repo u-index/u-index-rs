@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use itertools::Itertools;
 use minimizers::simd::packed::IntoBpIterator;
 
-use crate::{MsSequence, Seq, Sketcher, SketcherBuilder};
+use crate::{MsSequence, Seq, SketchError, Sketcher, SketcherBuilder};
 
 /// A packed minimizer representation.
 /// Bit width of the underlying alphabet is unspecified, and should not matter:
@@ -13,8 +15,12 @@ type Pos = usize;
 
 #[derive(Clone)]
 pub struct MinimizerParams {
+    /// The kmer/minimizer size.
     pub k: usize,
+    /// Each sequence of length l will contain at least one minimizer.
     pub l: usize,
+    /// When true, remap kmers to a smaller alphabet.
+    pub remap: bool,
 }
 
 impl MinimizerParams {
@@ -42,47 +48,80 @@ impl SketcherBuilder for MinimizerParams {
             self.k
         );
         let (min_poss, min_val): (Vec<Pos>, Vec<KmerVal>) = self.minimizers(seq).unzip();
-        (
-            MinimizerSketcher {
-                params: self.clone(),
-                min_poss,
-            },
-            // Simply reinterpret the u64 minimizer values as bytes on which the suffix array is built.
-            MsSequence(
-                min_val
-                    .into_iter()
-                    .flat_map(|x| x.to_ne_bytes())
-                    .collect_vec(),
-            ),
-        )
+        let (kmer_map, kmer_width) = if self.remap {
+            let mut kmer_map = HashMap::new();
+            let mut id = 0usize;
+            for &kmer in &min_val {
+                if !kmer_map.contains_key(&kmer) {
+                    kmer_map.insert(kmer, id);
+                    id += 1;
+                }
+            }
+            // When there is only a unique kmer as minimizer, use at least 1 byte still.
+            let kmer_width = id.next_power_of_two().trailing_zeros().div_ceil(8).max(1) as usize;
+            (kmer_map, kmer_width)
+        } else {
+            (HashMap::new(), self.k.min(8))
+        };
+        let sketcher = MinimizerSketcher {
+            params: self.clone(),
+            min_poss,
+            kmer_map,
+            kmer_width,
+        };
+        let ms_sequence = sketcher
+            .remap_minimizer_values(&min_val)
+            .expect("All minimizers of the input should be found");
+        (sketcher, ms_sequence)
     }
 }
 
 pub struct MinimizerSketcher {
     params: MinimizerParams,
+    /// Positions in the plain sequence of all minimizers.
     min_poss: Vec<Pos>,
+    /// When `remap` is true, a map from kmers to smaller IDs.
+    kmer_map: HashMap<KmerVal, usize>,
+    /// The width in bytes of the kmer IDs used.
+    kmer_width: usize,
+}
+
+impl MinimizerSketcher {
+    /// Takes minimizer values, and returns their byte representation.
+    /// Returns `None` when a minimizer was found that is not a minimizer in the input.
+    fn remap_minimizer_values(&self, min_vals: &[KmerVal]) -> Option<MsSequence> {
+        let mut bytes = Vec::with_capacity(min_vals.len() * self.kmer_width);
+        if self.params.remap {
+            for val in min_vals {
+                let val = *self.kmer_map.get(val)?;
+                let buf = val.to_ne_bytes();
+                bytes.extend_from_slice(&buf[..self.kmer_width]);
+            }
+        } else {
+            for val in min_vals {
+                let buf = val.to_ne_bytes();
+                bytes.extend_from_slice(&buf[..self.kmer_width]);
+            }
+        }
+        Some(MsSequence(bytes))
+    }
 }
 
 impl Sketcher for MinimizerSketcher {
-    fn sketch(&self, seq: &[u8]) -> Option<(MsSequence, usize)> {
-        let (min_poss, min_val): (Vec<Pos>, Vec<KmerVal>) = self.params.minimizers(seq).unzip();
-        Some((
-            // Simply reinterpret the u64 minimizer values as bytes on which the suffix array is built.
-            MsSequence(
-                min_val
-                    .into_iter()
-                    .flat_map(|x| x.to_ne_bytes())
-                    .collect_vec(),
-            ),
-            *min_poss.first()?,
+    fn sketch(&self, seq: Seq) -> Result<(MsSequence, usize), SketchError> {
+        let (min_poss, min_vals): (Vec<Pos>, Vec<KmerVal>) = self.params.minimizers(seq).unzip();
+        let offset = *min_poss.first().ok_or(SketchError::TooShort)?;
+        Ok((
+            self.remap_minimizer_values(&min_vals)
+                .ok_or(SketchError::NotFound)?,
+            offset,
         ))
     }
 
     fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize> {
-        const ALIGNMENT: usize = std::mem::size_of::<KmerVal>();
-        if ms_pos % ALIGNMENT != 0 {
+        if ms_pos % self.kmer_width != 0 {
             return None;
         }
-        Some(self.min_poss[ms_pos / ALIGNMENT])
+        Some(self.min_poss[ms_pos / self.kmer_width])
     }
 }
