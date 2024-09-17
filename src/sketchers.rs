@@ -1,5 +1,8 @@
-use crate::{MsSequence, Sketcher, SketcherBuilder};
+mod minimizers;
 
+pub use minimizers::MinimizerParams;
+
+use crate::{MsSequence, Seq, Sketcher, SketcherBuilder};
 
 /// 'Sketch' the sequence to itself.
 /// Convenient for testing purposes.
@@ -18,7 +21,7 @@ impl Sketcher for Identity {
         Some((MsSequence(seq.to_vec()), 0))
     }
 
-    fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> usize {
-        ms_pos
+    fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize> {
+        Some(ms_pos)
     }
 }

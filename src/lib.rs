@@ -1,5 +1,5 @@
-mod indices;
-mod sketchers;
+pub mod indices;
+pub mod sketchers;
 
 // Terminology and variables:
 // - Index: a datastructure that returns all locations where a pattern matches.
@@ -22,21 +22,15 @@ mod sketchers;
 // TODO: Rolling hash for O(1) checking.
 // TODO: True constant time checking?
 // TODO: Consider whether `Index` should own the input.
-
-/// A packed minimizer representation.
-/// Bit width of the underlying alphabet is unspecified, and should not matter:
-/// really this should only be used as a unique identifier of the kmer/minimizer
-/// that is only checked for equality, not inspected.
-type KmerVal = u64;
-/// The start position of a minimizer.
-type Pos = usize;
+// TODO: Compress the minimizer alphabet.
+// TODO: Use EF for minimizer locations.
 
 /// A reference to a sequence over a u8 alphabet.
 type Seq<'s> = &'s [u8];
 /// A sequence over a u8 alphabet.
 type Sequence = Vec<u8>;
 /// A reference to a minimizer space sequence.
-struct MsSeq<'s>(&'s [u8]);
+// struct MsSeq<'s>(&'s [u8]);
 /// A minimizer space sequence.
 pub struct MsSequence(Vec<u8>);
 
@@ -70,7 +64,8 @@ pub trait Sketcher {
     fn sketch(&self, seq: Seq) -> Option<(MsSequence, usize)>;
 
     /// Take a position of a character in the minimizer space, and return its start position in the original sequence.
-    fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> usize;
+    /// Returns `None` when the position in the minimizer space text is not aligned with the size of the encoded minimizers.
+    fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize>;
 }
 
 pub struct UIndex<'s> {
@@ -111,12 +106,19 @@ impl<'s> UIndex<'s> {
             // Checking:
             // 1. Map minimizer space pos back to original space.
             // 2. Check query against original sequence.
-            let pos = self.sketcher.ms_pos_to_plain_pos(ms_pos) - offset;
-            if &self.seq[pos..pos + pattern.len()] == pattern {
-                Some(pos)
-            } else {
-                None
-            }
+
+            // The sketcher returns None when `ms_pos` does not align with a minimizer position.
+            // The `checked_sub` fails when the minimizer is very close to the
+            // start, and the `offset` doesn't fit before.
+            let pos = self
+                .sketcher
+                .ms_pos_to_plain_pos(ms_pos)?
+                .checked_sub(offset)?;
+
+            // The `get` fails when the minimizer match is too close to the end
+            // and the pattern doesn't fit after it.
+            let matches = self.seq.get(pos..pos + pattern.len())? == pattern;
+            matches.then_some(pos)
         })))
     }
 }
