@@ -1,3 +1,5 @@
+mod indices;
+
 // Terminology and variables:
 // - Index: a datastructure that returns all locations where a pattern matches.
 // - k-mer and minimizer are the used interchangeably.
@@ -18,6 +20,7 @@
 // TODO: Streaming input
 // TODO: Rolling hash for O(1) checking.
 // TODO: True constant time checking?
+// TODO: Consider whether `Index` should own the input.
 
 /// A packed minimizer representation.
 /// Bit width of the underlying alphabet is unspecified, and should not matter:
@@ -27,24 +30,26 @@ type KmerVal = u64;
 /// The start position of a minimizer.
 type Pos = usize;
 
-/// A sequence over a u8 alphabet.
+/// A reference to a sequence over a u8 alphabet.
 type Seq<'s> = &'s [u8];
+/// A sequence over a u8 alphabet.
+type Sequence = Vec<u8>;
 /// A reference to a minimizer space sequence.
 struct MsSeq<'s>(&'s [u8]);
 /// A minimizer space sequence.
 pub struct MsSequence(Vec<u8>);
 
 /// A generic index to locate strings.
+/// The index owns the input text.
 pub trait IndexBuilder {
     type Index: Index + 'static;
     /// Build an index on the text.
-    fn build(text: &[u8]) -> Self::Index;
+    fn build(text: Sequence) -> Self::Index;
 }
 
-/// A generic index to locate strings.
 pub trait Index {
     /// Return all places where the pattern occurs.
-    fn query(&self, pattern: &[u8]) -> Box<dyn Iterator<Item = usize>>;
+    fn query<'i>(&'i self, pattern: &[u8]) -> Box<dyn Iterator<Item = usize> + 'i>;
 }
 
 /// Convert a plain sequence to minimizer space.
@@ -55,8 +60,6 @@ pub trait MsConvertorBuilder {
     fn build(k: usize, w: usize, seq: &[u8]) -> (Self::MsConvertor, MsSequence);
 }
 
-/// Convert a plain sequence to minimizer space.
-/// TODO: naming. Convertor? Compressor? ToMinSpace?
 pub trait MsConvertor {
     /// Take an input text, compute its minimizers, and compress those into the
     /// target `u8` alphabet. This could be done a few ways, e.g.:
@@ -85,7 +88,7 @@ impl<'s> UIndex<'s> {
     /// 5. Build underlying index.
     pub fn build<C: MsConvertorBuilder, I: IndexBuilder>(k: usize, w: usize, seq: Seq<'s>) -> Self {
         let (convertor, ms_seq) = C::build(k, w, seq);
-        let ms_index = Box::new(I::build(&ms_seq.0));
+        let ms_index = Box::new(I::build(ms_seq.0));
         Self {
             seq,
             convertor: Box::new(convertor),
