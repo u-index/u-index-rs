@@ -52,15 +52,14 @@ pub trait Index {
     fn query<'i>(&'i self, pattern: &[u8]) -> Box<dyn Iterator<Item = usize> + 'i>;
 }
 
-/// Convert a plain sequence to minimizer space.
-/// TODO: naming. Convertor? Compressor? ToMinSpace?
-pub trait MsConvertorBuilder {
-    type MsConvertor: MsConvertor + 'static;
+/// Sketch a plain sequence to minimizer space.
+pub trait SketcherBuilder {
+    type Sketcher: Sketcher + 'static;
     /// Take an input text, find its minimizers, and compress to the target space.
-    fn build(k: usize, w: usize, seq: &[u8]) -> (Self::MsConvertor, MsSequence);
+    fn build(k: usize, w: usize, seq: &[u8]) -> (Self::Sketcher, MsSequence);
 }
 
-pub trait MsConvertor {
+pub trait Sketcher {
     /// Take an input text, compute its minimizers, and compress those into the
     /// target `u8` alphabet. This could be done a few ways, e.g.:
     /// - concatenating the KmerVals,
@@ -75,39 +74,39 @@ pub trait MsConvertor {
 
 pub struct UIndex<'s> {
     seq: Seq<'s>,
-    convertor: Box<dyn MsConvertor>,
+    sketcher: Box<dyn Sketcher>,
     ms_index: Box<dyn Index>,
 }
 
 impl<'s> UIndex<'s> {
-    /// 1. Convert input to minimizer space.
+    /// 1. Sketch input to minimizer space.
     /// 2. Build minimiser space sequence.
     /// 2. (optionally) remap to smaller alphabet
     /// 3. Concat the minimizer values.
     /// 4. Reinterpret as underlying 2bit alphabet.
     /// 5. Build underlying index.
-    pub fn build<C: MsConvertorBuilder, I: IndexBuilder>(k: usize, w: usize, seq: Seq<'s>) -> Self {
-        let (convertor, ms_seq) = C::build(k, w, seq);
+    pub fn build<C: SketcherBuilder, I: IndexBuilder>(k: usize, w: usize, seq: Seq<'s>) -> Self {
+        let (sketcher, ms_seq) = C::build(k, w, seq);
         let ms_index = Box::new(I::build(ms_seq.0));
         Self {
             seq,
-            convertor: Box::new(convertor),
+            sketcher: Box::new(sketcher),
             ms_index,
         }
     }
 
-    /// 1. Convert query to minimizer space.
+    /// 1. Sketch query to minimizer space.
     /// 2. Query the minimizer space index.
     /// 3. Check all occurrences.
     /// Returns `None` if the pattern is too short and does not contain a minimizer.
     pub fn query<'p>(&'p self, pattern: Seq<'p>) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
-        let (ms_pattern, offset) = self.convertor.to_ms(pattern)?;
+        let (ms_pattern, offset) = self.sketcher.to_ms(pattern)?;
         let ms_occ = self.ms_index.query(&ms_pattern.0);
         Some(Box::new(ms_occ.filter_map(move |ms_pos| {
             // Checking:
             // 1. Map minimizer space pos back to original space.
             // 2. Check query against original sequence.
-            let pos = self.convertor.ms_pos_to_plain_pos(ms_pos) - offset;
+            let pos = self.sketcher.ms_pos_to_plain_pos(ms_pos) - offset;
             if &self.seq[pos..pos + pattern.len()] == pattern {
                 Some(pos)
             } else {
