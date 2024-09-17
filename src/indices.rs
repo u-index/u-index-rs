@@ -1,3 +1,3 @@
 mod sa_divsufsort;
 
-pub use sa_divsufsort::DivSufSortSaBuilder;
+pub use sa_divsufsort::DivSufSortSa;

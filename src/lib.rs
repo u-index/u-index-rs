@@ -45,7 +45,7 @@ pub struct MsSequence(Vec<u8>);
 pub trait IndexBuilder {
     type Index: Index + 'static;
     /// Build an index on the text.
-    fn build(text: Sequence) -> Self::Index;
+    fn build(&self, text: Sequence) -> Self::Index;
 }
 
 pub trait Index {
@@ -57,7 +57,7 @@ pub trait Index {
 pub trait SketcherBuilder {
     type Sketcher: Sketcher + 'static;
     /// Take an input text, find its minimizers, and compress to the target space.
-    fn build(k: usize, w: usize, seq: &[u8]) -> (Self::Sketcher, MsSequence);
+    fn sketch(&self, seq: Seq) -> (Self::Sketcher, MsSequence);
 }
 
 pub trait Sketcher {
@@ -67,7 +67,7 @@ pub trait Sketcher {
     /// - using a hash function to map the KmerVals to a smaller range.
     /// Also returns the position in `seq` of the first minimizer.
     /// Returns `None` when `seq` is too short to contain a minimizer.
-    fn to_ms(&self, seq: &[u8]) -> Option<(MsSequence, usize)>;
+    fn sketch(&self, seq: Seq) -> Option<(MsSequence, usize)>;
 
     /// Take a position of a character in the minimizer space, and return its start position in the original sequence.
     fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> usize;
@@ -86,9 +86,13 @@ impl<'s> UIndex<'s> {
     /// 3. Concat the minimizer values.
     /// 4. Reinterpret as underlying 2bit alphabet.
     /// 5. Build underlying index.
-    pub fn build<C: SketcherBuilder, I: IndexBuilder>(k: usize, w: usize, seq: Seq<'s>) -> Self {
-        let (sketcher, ms_seq) = C::build(k, w, seq);
-        let ms_index = Box::new(I::build(ms_seq.0));
+    pub fn build(
+        seq: Seq<'s>,
+        sketch_params: impl SketcherBuilder,
+        index_params: impl IndexBuilder,
+    ) -> Self {
+        let (sketcher, ms_seq) = sketch_params.sketch(seq);
+        let ms_index = Box::new(index_params.build(ms_seq.0));
         Self {
             seq,
             sketcher: Box::new(sketcher),
@@ -101,7 +105,7 @@ impl<'s> UIndex<'s> {
     /// 3. Check all occurrences.
     /// Returns `None` if the pattern is too short and does not contain a minimizer.
     pub fn query<'p>(&'p self, pattern: Seq<'p>) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
-        let (ms_pattern, offset) = self.sketcher.to_ms(pattern)?;
+        let (ms_pattern, offset) = self.sketcher.sketch(pattern)?;
         let ms_occ = self.ms_index.query(&ms_pattern.0);
         Some(Box::new(ms_occ.filter_map(move |ms_pos| {
             // Checking:
@@ -123,7 +127,9 @@ mod test {
     #[test]
     fn test_identity_simple() {
         let seq = b"ACGTACGTACGTACGT";
-        let index = UIndex::build::<sketchers::Identity, indices::DivSufSortSaBuilder>(4, 4, seq);
+        let sketcher = sketchers::Identity;
+        let index = indices::DivSufSortSa;
+        let index = UIndex::build(seq, sketcher, index);
         let query = b"ACGT";
         let mut occ = index.query(query).unwrap().collect::<Vec<_>>();
         occ.sort();
@@ -134,7 +140,9 @@ mod test {
         let seq = (0..1000000)
             .map(|_i| rand::random::<u8>())
             .collect::<Vec<_>>();
-        let index = UIndex::build::<sketchers::Identity, indices::DivSufSortSaBuilder>(4, 4, &seq);
+        let sketcher = sketchers::Identity;
+        let index = indices::DivSufSortSa;
+        let index = UIndex::build(&seq, sketcher, index);
         for _ in 0..1000 {
             let len = rand::random::<usize>() % 100;
             let pos = rand::random::<usize>() % (seq.len() - len);
@@ -151,7 +159,9 @@ mod test {
         let seq = (0..1000000)
             .map(|_i| rand::random::<u8>())
             .collect::<Vec<_>>();
-        let index = UIndex::build::<sketchers::Identity, indices::DivSufSortSaBuilder>(4, 4, &seq);
+        let sketcher = sketchers::Identity;
+        let index = indices::DivSufSortSa;
+        let index = UIndex::build(&seq, sketcher, index);
         for _ in 0..1000 {
             let len = 6;
             let query = (0..len).map(|_i| rand::random::<u8>()).collect::<Vec<_>>();
