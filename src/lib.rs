@@ -253,4 +253,63 @@ mod test {
             }
         }
     }
+
+    fn read_human_genome() -> Sequence {
+        eprintln!("Reading..");
+        let start = std::time::Instant::now();
+        let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
+            panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
+        };
+        let mut seq = vec![];
+        while let Some(r) = reader.next() {
+            let r = r.unwrap();
+            seq.extend_from_slice(&r.seq());
+        }
+        eprintln!("Reading took {:?}", start.elapsed());
+        eprintln!("Mapping to 0..3");
+        let start = std::time::Instant::now();
+        for c in &mut seq {
+            *c = match *c {
+                b'A' | b'a' => 0,
+                b'C' | b'c' => 1,
+                b'G' | b'g' => 2,
+                b'T' | b't' => 3,
+                _ => panic!("Unexpected character {c}"),
+            }
+        }
+        eprintln!("Mapping took {:?}", start.elapsed());
+        seq
+    }
+
+    #[test]
+    #[ignore = "needs human-genome.fa"]
+    fn human_genome() {
+        let seq = read_human_genome();
+
+        for remap in [false, true] {
+            for l in [50, 100] {
+                for k in [5, 6, 7, 8] {
+                    if k > l {
+                        continue;
+                    }
+                    eprintln!("remap {remap} l {l} k {k}");
+                    let sketcher = sketchers::MinimizerParams { l, k, remap };
+                    let ms_index = indices::DivSufSortSa;
+                    let start = std::time::Instant::now();
+                    let uindex = UIndex::build(&seq, sketcher, ms_index);
+                    eprintln!("Building took {:?}", start.elapsed());
+                    let start = std::time::Instant::now();
+                    for _ in 0..1000 {
+                        let len = l + rand::random::<usize>() % 100;
+                        let pos = rand::random::<usize>() % (seq.len() - len);
+                        let query = &seq[pos..pos + len];
+
+                        let uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+                        assert!(uindex_occ.contains(&pos));
+                    }
+                    eprintln!("Querying took {:?}", start.elapsed());
+                }
+            }
+        }
+    }
 }
