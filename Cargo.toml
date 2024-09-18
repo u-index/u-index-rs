@@ -11,7 +11,7 @@ incremental = true
 [dependencies]
 itertools = "0.13.0"
 libdivsufsort-rs = "0.1.3"
-minimizers = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/minimizers"}
+minimizers = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/minimizers", default-features = false}
 
 # cacheline-ef = { path = "../cacheline-ef" }
 # fxhash = "0.2.1"
