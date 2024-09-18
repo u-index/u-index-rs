@@ -1,3 +1,5 @@
+use mem_dbg::MemSize;
+
 pub mod indices;
 pub mod sketchers;
 
@@ -28,6 +30,7 @@ pub mod sketchers;
 // TODO: Perfect hash the minimizers
 // TODO: Reserve ms ID for sequence ends.
 // TODO: Use EF for sequence boundaries.
+// TODO: Count false positives and other events. Add tracing or return them directly.
 
 /// A reference to a sequence over a u8 alphabet.
 type Seq<'s> = &'s [u8];
@@ -46,7 +49,7 @@ pub trait IndexBuilder {
     fn build(&self, text: Sequence) -> Self::Index;
 }
 
-pub trait Index {
+pub trait Index: MemSize {
     /// Return all places where the pattern occurs.
     fn query<'i>(&'i self, pattern: &[u8]) -> Box<dyn Iterator<Item = usize> + 'i>;
 }
@@ -66,7 +69,7 @@ pub enum SketchError {
     NotFound,
 }
 
-pub trait Sketcher {
+pub trait Sketcher: MemSize {
     /// Take an input text, compute its minimizers, and compress those into the
     /// target `u8` alphabet. This could be done a few ways, e.g.:
     /// - concatenating the KmerVals,

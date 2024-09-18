@@ -1,11 +1,13 @@
 mod minimizers;
 
+use mem_dbg::MemSize;
 pub use minimizers::MinimizerParams;
 
 use crate::{MsSequence, Seq, SketchError, Sketcher, SketcherBuilder};
 
 /// 'Sketch' the sequence to itself.
 /// Convenient for testing purposes.
+#[derive(MemSize)]
 pub struct Identity;
 
 impl SketcherBuilder for Identity {

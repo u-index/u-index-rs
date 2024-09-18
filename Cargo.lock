@@ -1584,6 +1584,7 @@ version = "0.1.0"
 dependencies = [
  "itertools 0.13.0",
  "libdivsufsort-rs",
+ "mem_dbg",
  "minimizers",
  "needletail",
  "rand",
