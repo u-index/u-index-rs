@@ -12,7 +12,8 @@ impl IndexBuilder for DivSufSortSa {
 
     fn build(&self, seq: Sequence) -> Self::Index {
         let timer = Timer::new("Building suffix array");
-        let sa = libdivsufsort_rs::divsufsort64(&seq).expect("suffix array");
+        trace!("MS sequence length {}", seq.len());
+        let sa = libdivsufsort_rs::divsufsort(&seq).expect("suffix array");
         drop(timer);
 
         SuffixArray { sa, seq }

@@ -195,8 +195,9 @@ impl<'s> UIndex<'s> {
 #[cfg(test)]
 mod test {
     use indices::DivSufSortSa;
-    use mem_dbg::{DbgFlags, SizeFlags};
+    use mem_dbg::SizeFlags;
     use sketchers::{IdentityParams, MinimizerParams};
+    use tracing::trace;
 
     use super::*;
 
@@ -319,8 +320,7 @@ mod test {
     }
 
     fn read_human_genome() -> Sequence {
-        eprintln!("Reading..");
-        let start = std::time::Instant::now();
+        let mut timer = Timer::new("Reading");
         let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
             panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
         };
@@ -330,9 +330,7 @@ mod test {
             seq.extend_from_slice(&r.seq());
             break;
         }
-        eprintln!("Reading took {:?}", start.elapsed());
-        eprintln!("Mapping to 0..3");
-        let start = std::time::Instant::now();
+        timer.next("Mapping");
         for c in &mut seq {
             *c = match *c {
                 b'A' | b'a' => 0,
@@ -342,7 +340,6 @@ mod test {
                 _ => panic!("Unexpected character {c}"),
             }
         }
-        eprintln!("Mapping took {:?}", start.elapsed());
         seq
     }
 
@@ -351,34 +348,31 @@ mod test {
     fn human_genome() {
         let seq = read_human_genome();
 
-        for l in [1000, 200, 100, 50] {
+        for l in [200] {
             for k in [5, 6, 7, 8] {
-                for remap in [false, true] {
+                for remap in [true] {
                     if k > l {
                         continue;
                     }
-                    eprintln!("remap {remap} l {l} k {k}");
+
+                    let mut timer = Timer::new("Build");
+                    trace!("remap {remap} l {l} k {k}");
                     let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams { l, k, remap });
                     let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa);
-                    let start = std::time::Instant::now();
                     let uindex = UIndex::build(&seq, sketcher, ms_index);
-                    eprintln!("Building took {:?}", start.elapsed());
-                    eprintln!("Size:     {}", uindex.mem_size(SizeFlags::empty()));
-                    eprintln!("Capacity: {}", uindex.mem_size(SizeFlags::CAPACITY));
-                    uindex
-                        .mem_dbg(DbgFlags::default() | DbgFlags::COLOR)
-                        .unwrap();
-
-                    let start = std::time::Instant::now();
+                    trace!(
+                        "Index size:   {} MB",
+                        uindex.mem_size(SizeFlags::default()) / (1024 * 1024)
+                    );
+                    timer.next("Query");
                     for _ in 0..1000 {
-                        let len = l + rand::random::<usize>() % 100;
+                        let len = 2 * l + rand::random::<usize>() % l;
                         let pos = rand::random::<usize>() % (seq.len() - len);
                         let query = &seq[pos..pos + len];
 
                         let uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
                         assert!(uindex_occ.contains(&pos));
                     }
-                    eprintln!("Querying took {:?}", start.elapsed());
                 }
             }
         }
