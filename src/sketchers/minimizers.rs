@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 use minimizers::simd::packed::IntoBpIterator;
+use sux::traits::IndexedSeq;
 
 use crate::{MsSequence, Seq, SketchError, Sketcher, SketcherBuilder};
 
@@ -63,9 +64,16 @@ impl SketcherBuilder for MinimizerParams {
         } else {
             (HashMap::new(), self.k.min(8))
         };
+        let mut min_poss_ef = sux::dict::elias_fano::EliasFanoBuilder::new(
+            min_poss.len(),
+            *min_poss.last().unwrap_or(&0),
+        );
+        for p in min_poss {
+            min_poss_ef.push(p);
+        }
         let sketcher = MinimizerSketcher {
             params: self.clone(),
-            min_poss,
+            min_poss: min_poss_ef.build_with_seq(),
             kmer_map,
             kmer_width,
         };
@@ -79,7 +87,7 @@ impl SketcherBuilder for MinimizerParams {
 pub struct MinimizerSketcher {
     params: MinimizerParams,
     /// Positions in the plain sequence of all minimizers.
-    min_poss: Vec<Pos>,
+    min_poss: sux::dict::elias_fano::EfSeq,
     /// When `remap` is true, a map from kmers to smaller IDs.
     kmer_map: HashMap<KmerVal, usize>,
     /// The width in bytes of the kmer IDs used.
@@ -122,6 +130,6 @@ impl Sketcher for MinimizerSketcher {
         if ms_pos % self.kmer_width != 0 {
             return None;
         }
-        Some(self.min_poss[ms_pos / self.kmer_width])
+        Some(self.min_poss.get(ms_pos / self.kmer_width))
     }
 }
