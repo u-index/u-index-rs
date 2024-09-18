@@ -23,6 +23,11 @@ pub mod sketchers;
 // TODO: True constant time checking?
 // TODO: Consider whether `Index` should own the input.
 // TODO: Use EF for minimizer locations.
+// TODO: minmers?
+// TODO: Randomize the minimizer order
+// TODO: Perfect hash the minimizers
+// TODO: Reserve ms ID for sequence ends.
+// TODO: Use EF for sequence boundaries.
 
 /// A reference to a sequence over a u8 alphabet.
 type Seq<'s> = &'s [u8];
