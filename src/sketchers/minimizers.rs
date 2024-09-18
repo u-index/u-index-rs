@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use mem_dbg::MemSize;
+use mem_dbg::{MemDbg, MemSize};
 use minimizers::simd::packed::IntoBpIterator;
 use sux::traits::IndexedSeq;
 
@@ -15,7 +15,7 @@ type KmerVal = u64;
 /// The start position of a minimizer.
 type Pos = usize;
 
-#[derive(Clone, MemSize)]
+#[derive(Clone, Copy, MemSize, MemDbg)]
 pub struct MinimizerParams {
     /// The kmer/minimizer size.
     pub k: usize,
@@ -85,7 +85,7 @@ impl SketcherBuilder for MinimizerParams {
     }
 }
 
-#[derive(MemSize)]
+#[derive(MemSize, MemDbg)]
 pub struct MinimizerSketcher {
     params: MinimizerParams,
     /// Positions in the plain sequence of all minimizers.

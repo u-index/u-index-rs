@@ -1,4 +1,4 @@
-use mem_dbg::MemSize;
+use mem_dbg::{MemDbg, MemSize};
 
 use crate::{Index, IndexBuilder, Sequence};
 
@@ -19,7 +19,7 @@ impl IndexBuilder for DivSufSortSa {
 
 /// A 64-bit suffix array that owns the corresponding text.
 /// Uses `libdivsufsort` for searching.
-#[derive(MemSize)]
+#[derive(MemSize, MemDbg)]
 pub struct SuffixArray {
     seq: Sequence,
     sa: Vec<i64>,
