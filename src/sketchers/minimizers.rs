@@ -5,7 +5,7 @@ use mem_dbg::{MemDbg, MemSize};
 use minimizers::simd::packed::IntoBpIterator;
 use sux::traits::IndexedSeq;
 
-use crate::{MsSequence, Seq, SketchError, Sketcher, SketcherBuilder};
+use crate::{utils::Timer, MsSequence, Seq, SketchError, Sketcher, SketcherBuilder};
 
 /// A packed minimizer representation.
 /// Bit width of the underlying alphabet is unspecified, and should not matter:
@@ -49,8 +49,10 @@ impl SketcherBuilder for MinimizerParams {
             "k={} is too large to fit k bytes in a u64",
             self.k
         );
+        let mut timer = Timer::new("Computing minimizers");
         let (min_poss, min_val): (Vec<Pos>, Vec<KmerVal>) = self.minimizers(seq).unzip();
         let (kmer_map, kmer_width) = if self.remap {
+            timer.next("Building remap");
             let mut kmer_map = HashMap::new();
             let mut id = 0usize;
             for &kmer in &min_val {
@@ -65,6 +67,7 @@ impl SketcherBuilder for MinimizerParams {
         } else {
             (HashMap::new(), self.k.min(8))
         };
+        timer.next("Buliding EF");
         let mut min_poss_ef = sux::dict::elias_fano::EliasFanoBuilder::new(
             min_poss.len(),
             *min_poss.last().unwrap_or(&0),
@@ -78,6 +81,7 @@ impl SketcherBuilder for MinimizerParams {
             kmer_map,
             kmer_width,
         };
+        timer.next("Remapping");
         let ms_sequence = sketcher
             .remap_minimizer_values(&min_val)
             .expect("All minimizers of the input should be found");
@@ -123,7 +127,7 @@ impl Sketcher for MinimizerSketcher {
         let offset = *min_poss.first().ok_or(SketchError::TooShort)?;
         Ok((
             self.remap_minimizer_values(&min_vals)
-                .ok_or(SketchError::NotFound)?,
+                .ok_or(SketchError::UnknownMinimizer)?,
             offset,
         ))
     }

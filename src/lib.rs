@@ -1,9 +1,13 @@
+use std::cell::RefCell;
+
 use indices::{IndexBuilderEnum, IndexEnum};
 use mem_dbg::{MemDbg, MemSize};
 use sketchers::{SketcherBuilderEnum, SketcherEnum};
+use utils::{Timer, INIT_TRACE};
 
 pub mod indices;
 pub mod sketchers;
+mod utils;
 
 // Terminology and variables:
 // - Index: a datastructure that returns all locations where a pattern matches.
@@ -26,7 +30,6 @@ pub mod sketchers;
 // TODO: Rolling hash for O(1) checking.
 // TODO: True constant time checking?
 // TODO: Consider whether `Index` should own the input.
-// TODO: Use EF for minimizer locations.
 // TODO: minmers?
 // TODO: Randomize the minimizer order
 // TODO: Perfect hash the minimizers
@@ -68,7 +71,7 @@ pub enum SketchError {
     TooShort,
     /// The sequence was sketched, but contains unknown minimizers, and thus is
     /// surely not contained in the text.
-    NotFound,
+    UnknownMinimizer,
 }
 
 pub trait Sketcher: MemSize + MemDbg {
@@ -85,11 +88,35 @@ pub trait Sketcher: MemSize + MemDbg {
     fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize>;
 }
 
-#[derive(MemSize)]
+#[derive(MemSize, MemDbg)]
 pub struct UIndex<'s> {
     seq: Seq<'s>,
     sketcher: SketcherEnum,
     ms_index: IndexEnum,
+    query_stats: RefCell<QueryStats>,
+}
+
+#[derive(MemSize, MemDbg, Default, Debug)]
+struct QueryStats {
+    /// Pattern is too short to sketch.
+    too_short: usize,
+    /// Pattern contained a minimizer that is not in the input text.
+    unknown_minimizer: usize,
+    /// A minimizer-space match was found that does not align to the minimizer alphabet size.
+    misaligned_ms_pos: usize,
+    /// A minimizer-space match was found, but its containing sequence is too short to contain the pattern.
+    out_of_bounds: usize,
+    /// Mismatch in sequence space.
+    mismatches: usize,
+    /// Matches.
+    matches: usize,
+}
+
+impl<'s> Drop for UIndex<'s> {
+    fn drop(&mut self) {
+        let stats = self.query_stats.borrow();
+        tracing::info!("Query stats: {:#?}", *stats);
+    }
 }
 
 impl<'s> UIndex<'s> {
@@ -100,12 +127,16 @@ impl<'s> UIndex<'s> {
         sketch_params: SketcherBuilderEnum,
         index_params: IndexBuilderEnum,
     ) -> Self {
+        *INIT_TRACE;
+        let mut timer = Timer::new("Sketch");
         let (sketcher, ms_seq) = sketch_params.sketch(seq);
+        timer.next("Build");
         let ms_index = index_params.build(ms_seq.0);
         Self {
             seq,
             sketcher,
             ms_index,
+            query_stats: RefCell::new(QueryStats::default()),
         }
     }
 
@@ -117,8 +148,14 @@ impl<'s> UIndex<'s> {
     pub fn query<'p>(&'p self, pattern: Seq<'p>) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
         let (ms_pattern, offset) = match self.sketcher.sketch(pattern) {
             Ok(x) => x,
-            Err(SketchError::TooShort) => return None,
-            Err(SketchError::NotFound) => return Some(Box::new(std::iter::empty())),
+            Err(SketchError::TooShort) => {
+                self.query_stats.borrow_mut().too_short += 1;
+                return None;
+            }
+            Err(SketchError::UnknownMinimizer) => {
+                self.query_stats.borrow_mut().unknown_minimizer += 1;
+                return Some(Box::new(std::iter::empty()));
+            }
         };
         let ms_occ = self.ms_index.query(&ms_pattern.0);
         Some(Box::new(ms_occ.filter_map(move |ms_pos| {
@@ -129,15 +166,28 @@ impl<'s> UIndex<'s> {
             // The sketcher returns None when `ms_pos` does not align with a minimizer position.
             // The `checked_sub` fails when the minimizer is very close to the
             // start, and the `offset` doesn't fit before.
-            let pos = self
-                .sketcher
-                .ms_pos_to_plain_pos(ms_pos)?
-                .checked_sub(offset)?;
+            let plain_pos = self.sketcher.ms_pos_to_plain_pos(ms_pos).or_else(|| {
+                self.query_stats.borrow_mut().misaligned_ms_pos += 1;
+                None
+            })?;
+            let pos = plain_pos.checked_sub(offset).or_else(|| {
+                self.query_stats.borrow_mut().out_of_bounds += 1;
+                None
+            })?;
 
             // The `get` fails when the minimizer match is too close to the end
             // and the pattern doesn't fit after it.
-            let matches = self.seq.get(pos..pos + pattern.len())? == pattern;
-            matches.then_some(pos)
+            let matches = self.seq.get(pos..pos + pattern.len()).or_else(|| {
+                self.query_stats.borrow_mut().out_of_bounds += 1;
+                None
+            })? == pattern;
+            if matches {
+                self.query_stats.borrow_mut().matches += 1;
+                Some(pos)
+            } else {
+                self.query_stats.borrow_mut().mismatches += 1;
+                None
+            }
         })))
     }
 }
@@ -145,7 +195,7 @@ impl<'s> UIndex<'s> {
 #[cfg(test)]
 mod test {
     use indices::DivSufSortSa;
-    use mem_dbg::SizeFlags;
+    use mem_dbg::{DbgFlags, SizeFlags};
     use sketchers::{IdentityParams, MinimizerParams};
 
     use super::*;
@@ -278,6 +328,7 @@ mod test {
         while let Some(r) = reader.next() {
             let r = r.unwrap();
             seq.extend_from_slice(&r.seq());
+            break;
         }
         eprintln!("Reading took {:?}", start.elapsed());
         eprintln!("Mapping to 0..3");
@@ -300,9 +351,9 @@ mod test {
     fn human_genome() {
         let seq = read_human_genome();
 
-        for remap in [false, true] {
-            for l in [200, 100, 50] {
-                for k in [5, 6, 7, 8] {
+        for l in [1000, 200, 100, 50] {
+            for k in [5, 6, 7, 8] {
+                for remap in [false, true] {
                     if k > l {
                         continue;
                     }
@@ -314,6 +365,9 @@ mod test {
                     eprintln!("Building took {:?}", start.elapsed());
                     eprintln!("Size:     {}", uindex.mem_size(SizeFlags::empty()));
                     eprintln!("Capacity: {}", uindex.mem_size(SizeFlags::CAPACITY));
+                    uindex
+                        .mem_dbg(DbgFlags::default() | DbgFlags::COLOR)
+                        .unwrap();
 
                     let start = std::time::Instant::now();
                     for _ in 0..1000 {

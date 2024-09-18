@@ -1,6 +1,6 @@
 use mem_dbg::{MemDbg, MemSize};
 
-use crate::{Index, IndexBuilder, Sequence};
+use crate::{utils::Timer, Index, IndexBuilder, Sequence};
 
 /// Build a 64-bit suffix array using `libdivsufsort`.
 #[derive(Clone, Copy)]
@@ -10,10 +10,11 @@ impl IndexBuilder for DivSufSortSa {
     type Index = SuffixArray;
 
     fn build(&self, seq: Sequence) -> Self::Index {
-        SuffixArray {
-            sa: libdivsufsort_rs::divsufsort64(&seq).expect("suffix array"),
-            seq,
-        }
+        let timer = Timer::new("Building suffix array");
+        let sa = libdivsufsort_rs::divsufsort64(&seq).expect("suffix array");
+        drop(timer);
+
+        SuffixArray { sa, seq }
     }
 }
 
