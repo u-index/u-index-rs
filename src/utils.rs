@@ -1,47 +1,66 @@
-use std::{cell::Cell, sync::LazyLock};
+use std::{
+    cell::Cell,
+    collections::HashMap,
+    sync::{LazyLock, Mutex},
+};
 
+use mem_dbg::{MemDbg, MemSize};
 use tracing::trace;
 
 thread_local! {
     static TIMER_DEPTH: Cell<usize> = Cell::new(0);
 }
 
-pub struct Timer {
+pub struct Timer<'s> {
     name: &'static str,
+    stats: Option<&'s Stats>,
     start: std::time::Instant,
     depth: usize,
 }
 
-impl Timer {
+impl<'s> Timer<'s> {
     pub fn new(name: &'static str) -> Self {
         let depth = TIMER_DEPTH.with(|d| d.get());
         TIMER_DEPTH.with(|d| d.set(depth + 1));
         Self {
             name,
+            stats: None,
+            start: std::time::Instant::now(),
+            depth,
+        }
+    }
+    pub fn new_stats(name: &'static str, stats: &'s Stats) -> Self {
+        let depth = TIMER_DEPTH.with(|d| d.get());
+        TIMER_DEPTH.with(|d| d.set(depth + 1));
+        Self {
+            name,
+            stats: Some(stats),
             start: std::time::Instant::now(),
             depth,
         }
     }
     pub fn next(&mut self, name: &'static str) {
-        let elapsed = self.start.elapsed();
-        let mut prefix = String::new();
-        for _ in 0..self.depth {
-            prefix.push_str(" ");
-        }
-        trace!("{prefix} {:<30}: {:.3?}", self.name, elapsed,);
+        self.log();
         self.name = name;
         self.start = std::time::Instant::now();
     }
-}
 
-impl Drop for Timer {
-    fn drop(&mut self) {
+    fn log(&self) {
         let elapsed = self.start.elapsed();
+        if let Some(stats) = self.stats {
+            stats.add(self.name, elapsed.as_secs_f32());
+        }
         let mut prefix = String::new();
         for _ in 0..self.depth {
             prefix.push_str(" ");
         }
         trace!("{prefix} {:<30}: {:.3?}", self.name, elapsed,);
+    }
+}
+
+impl<'s> Drop for Timer<'s> {
+    fn drop(&mut self) {
+        self.log();
         TIMER_DEPTH.with(|d| d.set(d.get() - 1));
     }
 }
@@ -61,3 +80,27 @@ fn init_trace() {
 }
 
 pub static INIT_TRACE: LazyLock<()> = LazyLock::new(init_trace);
+
+#[derive(Default, MemSize, MemDbg)]
+pub struct Stats {
+    stats: Mutex<HashMap<&'static str, f32>>,
+}
+impl Stats {
+    pub fn set(&self, name: &'static str, value: impl num_traits::ToPrimitive) {
+        self.stats
+            .lock()
+            .unwrap()
+            .insert(name, value.to_f32().unwrap());
+    }
+    pub fn add(&self, name: &'static str, value: f32) {
+        *self.stats.lock().unwrap().entry(name).or_default() += value;
+    }
+    pub fn into(self) -> HashMap<&'static str, f32> {
+        self.stats.into_inner().unwrap()
+    }
+    pub fn clone(&self) -> Self {
+        Self {
+            stats: Mutex::new(self.stats.lock().unwrap().clone()),
+        }
+    }
+}

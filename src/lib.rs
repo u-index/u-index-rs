@@ -1,9 +1,9 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, collections::HashMap};
 
 use indices::{IndexBuilderEnum, IndexEnum};
 use mem_dbg::{MemDbg, MemSize};
 use sketchers::{SketcherBuilderEnum, SketcherEnum};
-use utils::{Timer, INIT_TRACE};
+use utils::{Stats, Timer, INIT_TRACE};
 
 pub mod indices;
 pub mod sketchers;
@@ -50,8 +50,14 @@ pub struct MsSequence(Vec<u8>);
 /// The index owns the input text.
 pub trait IndexBuilder {
     type Index: Index + 'static;
+
+    /// Build an index on the text, and keep track of statistics.
+    fn build_with_stats(&self, text: Sequence, stats: &Stats) -> Self::Index;
+
     /// Build an index on the text.
-    fn build(&self, text: Sequence) -> Self::Index;
+    fn build(&self, text: Sequence) -> Self::Index {
+        self.build_with_stats(text, &Stats::default())
+    }
 }
 
 pub trait Index: MemSize + MemDbg {
@@ -63,7 +69,13 @@ pub trait Index: MemSize + MemDbg {
 pub trait SketcherBuilder {
     type Sketcher: Sketcher + 'static;
     /// Take an input text, find its minimizers, and compress to the target space.
-    fn sketch(&self, seq: Seq) -> (Self::Sketcher, MsSequence);
+    /// Additionally log statistics to `stats`.
+    fn sketch_with_stats(&self, seq: Seq, stats: &Stats) -> (Self::Sketcher, MsSequence);
+
+    /// Take an input text, find its minimizers, and compress to the target space.
+    fn sketch(&self, seq: Seq) -> (Self::Sketcher, MsSequence) {
+        self.sketch_with_stats(seq, &Stats::default())
+    }
 }
 
 pub enum SketchError {
@@ -94,6 +106,7 @@ pub struct UIndex<'s> {
     sketcher: SketcherEnum,
     ms_index: IndexEnum,
     query_stats: RefCell<QueryStats>,
+    stats: Stats,
 }
 
 #[derive(MemSize, MemDbg, Default, Debug)]
@@ -128,16 +141,32 @@ impl<'s> UIndex<'s> {
         index_params: IndexBuilderEnum,
     ) -> Self {
         *INIT_TRACE;
-        let mut timer = Timer::new("Sketch");
-        let (sketcher, ms_seq) = sketch_params.sketch(seq);
+        let stats = Stats::default();
+        let mut timer = Timer::new_stats("Sketch", &stats);
+        let (sketcher, ms_seq) = sketch_params.sketch_with_stats(seq, &stats);
         timer.next("Build");
-        let ms_index = index_params.build(ms_seq.0);
+        let ms_index = index_params.build_with_stats(ms_seq.0, &stats);
+        drop(timer);
         Self {
             seq,
             sketcher,
             ms_index,
             query_stats: RefCell::new(QueryStats::default()),
+            stats,
         }
+    }
+
+    pub fn stats(&self) -> HashMap<&'static str, f32> {
+        let stats = self.stats.clone();
+        let qs = self.query_stats.borrow();
+        stats.set("query_too_short", qs.too_short);
+        stats.set("query_unknown_minimizer", qs.unknown_minimizer);
+        stats.set("query_misaligned_ms_pos", qs.misaligned_ms_pos);
+        stats.set("query_out_of_bounds", qs.out_of_bounds);
+        stats.set("query_mismatches", qs.mismatches);
+        stats.set("query_matches", qs.matches);
+
+        stats.into()
     }
 
     /// 1. Sketch query to minimizer space.

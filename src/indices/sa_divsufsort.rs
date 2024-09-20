@@ -1,7 +1,10 @@
 use mem_dbg::{MemDbg, MemSize};
 use tracing::trace;
 
-use crate::{utils::Timer, Index, IndexBuilder, Sequence};
+use crate::{
+    utils::{Stats, Timer},
+    Index, IndexBuilder, Sequence,
+};
 
 /// Build a 32-bit suffix array using `libdivsufsort`.
 #[derive(Clone, Copy)]
@@ -10,9 +13,10 @@ pub struct DivSufSortSa;
 impl IndexBuilder for DivSufSortSa {
     type Index = SuffixArray;
 
-    fn build(&self, seq: Sequence) -> Self::Index {
-        let timer = Timer::new("Building suffix array");
+    fn build_with_stats(&self, seq: Sequence, stats: &Stats) -> Self::Index {
+        let timer = Timer::new_stats("Building suffix array", stats);
         trace!("MS sequence length {}", seq.len());
+        stats.set("sequence length", seq.len());
         let sa = libdivsufsort_rs::divsufsort(&seq).expect("suffix array");
         drop(timer);
 

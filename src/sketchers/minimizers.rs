@@ -6,7 +6,10 @@ use minimizers::simd::packed::IntoBpIterator;
 use sux::traits::IndexedSeq;
 use tracing::trace;
 
-use crate::{utils::Timer, MsSequence, Seq, SketchError, Sketcher, SketcherBuilder};
+use crate::{
+    utils::{Stats, Timer},
+    MsSequence, Seq, SketchError, Sketcher, SketcherBuilder,
+};
 
 /// A packed minimizer representation.
 /// Bit width of the underlying alphabet is unspecified, and should not matter:
@@ -44,16 +47,18 @@ impl MinimizerParams {
 impl SketcherBuilder for MinimizerParams {
     type Sketcher = MinimizerSketcher;
 
-    fn sketch(&self, seq: Seq) -> (Self::Sketcher, MsSequence) {
+    fn sketch_with_stats(&self, seq: Seq, stats: &Stats) -> (Self::Sketcher, MsSequence) {
         assert!(
             self.k <= KmerVal::BITS as usize / 8,
             "k={} is too large to fit k bytes in a u64",
             self.k
         );
         trace!("Sequence length {}", seq.len());
-        let mut timer = Timer::new("Computing minimizers");
+        stats.set("sequence_length", seq.len());
+        let mut timer = Timer::new_stats("computing_minimizers", stats);
         let (min_poss, min_val): (Vec<Pos>, Vec<KmerVal>) = self.minimizers(seq).unzip();
         trace!("Num minimizers: {}", min_poss.len());
+        stats.set("num_minimizers", min_poss.len());
         let (kmer_map, kmer_width) = if self.remap {
             timer.next("Building remap");
             let mut kmer_map = HashMap::new();
@@ -65,13 +70,18 @@ impl SketcherBuilder for MinimizerParams {
                 }
             }
             trace!("Num distinct minimizers: {}", id);
+            stats.set("num_distinct_minimizers", id);
             // When there is only a unique kmer as minimizer, use at least 1 byte still.
-            let kmer_width = id.next_power_of_two().trailing_zeros().div_ceil(8).max(1) as usize;
+            let kmer_width_bits = id.next_power_of_two().trailing_zeros();
+            trace!("kmer_width: {kmer_width_bits} bits");
+            stats.set("kmer_width_bits", kmer_width_bits);
+            let kmer_width = kmer_width_bits.div_ceil(8).max(1) as usize;
             (kmer_map, kmer_width)
         } else {
             (HashMap::new(), self.k.min(8))
         };
         trace!("kmer_width: {kmer_width} bytes");
+        stats.set("kmer_width", kmer_width);
         timer.next("Building EF");
         let mut min_poss_ef = sux::dict::elias_fano::EliasFanoBuilder::new(
             min_poss.len(),

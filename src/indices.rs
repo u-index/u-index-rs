@@ -4,7 +4,7 @@ use mem_dbg::{MemDbg, MemSize};
 pub use sa_divsufsort::DivSufSortSa;
 use sa_divsufsort::SuffixArray;
 
-use crate::{Index, IndexBuilder};
+use crate::{utils::Stats, Index, IndexBuilder};
 
 #[derive(Clone, Copy)]
 pub enum IndexBuilderEnum {
@@ -19,9 +19,11 @@ pub enum IndexEnum {
 impl IndexBuilder for IndexBuilderEnum {
     type Index = IndexEnum;
 
-    fn build(&self, text: crate::Sequence) -> Self::Index {
+    fn build_with_stats(&self, text: crate::Sequence, stats: &Stats) -> Self::Index {
         match self {
-            IndexBuilderEnum::DivSufSortSa(builder) => IndexEnum::SuffixArray(builder.build(text)),
+            IndexBuilderEnum::DivSufSortSa(builder) => {
+                IndexEnum::SuffixArray(builder.build_with_stats(text, stats))
+            }
         }
     }
 }
