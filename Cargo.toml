@@ -35,3 +35,9 @@ needletail = "0.5.1"
 mem_dbg = { path = "../forks/mem_dbg-rs/mem_dbg" }
 
 [dev-dependencies]
+
+[features]
+# Enable python bindings
+python-bindings = ['dep:pyo3']
+
+default = ['python-bindings']

@@ -10,6 +10,10 @@ pub mod indices;
 pub mod sketchers;
 mod utils;
 
+mod bench;
+#[cfg(feature = "python-bindings")]
+mod py;
+
 // Terminology and variables:
 // - Index: a datastructure that returns all locations where a pattern matches.
 // - k-mer and minimizer are the used interchangeably.
@@ -107,6 +111,7 @@ pub trait Sketcher: MemSize + MemDbg {
 }
 
 #[derive(MemSize, MemDbg)]
+#[pyclass]
 pub struct UIndex {
     seq: Sequence,
     sketcher: SketcherEnum,
