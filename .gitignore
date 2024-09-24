@@ -1,3 +1,4 @@
 /target
 /.env/
 /human-genome.fa
+.ipynb_checkpoints
