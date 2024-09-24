@@ -252,6 +252,30 @@ impl<'s> UIndex<'s> {
     }
 }
 
+fn read_human_genome() -> Sequence {
+    let mut timer = Timer::new("Reading");
+    let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
+        panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
+    };
+    let mut seq = vec![];
+    while let Some(r) = reader.next() {
+        let r = r.unwrap();
+        seq.extend_from_slice(&r.seq());
+        break;
+    }
+    timer.next("Mapping");
+    for c in &mut seq {
+        *c = match *c {
+            b'A' | b'a' => 0,
+            b'C' | b'c' => 1,
+            b'G' | b'g' => 3,
+            b'T' | b't' => 2,
+            _ => panic!("Unexpected character {c}"),
+        }
+    }
+    seq
+}
+
 #[cfg(test)]
 mod test {
     use indices::DivSufSortSa;
@@ -379,30 +403,6 @@ mod test {
         }
     }
 
-    fn read_human_genome() -> Sequence {
-        let mut timer = Timer::new("Reading");
-        let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
-            panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
-        };
-        let mut seq = vec![];
-        while let Some(r) = reader.next() {
-            let r = r.unwrap();
-            seq.extend_from_slice(&r.seq());
-            break;
-        }
-        timer.next("Mapping");
-        for c in &mut seq {
-            *c = match *c {
-                b'A' | b'a' => 0,
-                b'C' | b'c' => 1,
-                b'G' | b'g' => 2,
-                b'T' | b't' => 3,
-                _ => panic!("Unexpected character {c}"),
-            }
-        }
-        seq
-    }
-
     #[test]
     #[ignore = "needs human-genome.fa"]
     fn human_genome() {
@@ -425,8 +425,8 @@ mod test {
                         uindex.mem_size(SizeFlags::default()) / (1024 * 1024)
                     );
                     timer.next("Query");
-                    for _ in 0..1000 {
-                        let len = 2 * l + rand::random::<usize>() % l;
+                    for _ in 0..5000 {
+                        let len = l + 2 * rand::random::<usize>() % l;
                         let pos = rand::random::<usize>() % (seq.len() - len);
                         let query = &seq[pos..pos + len];
 
