@@ -1,7 +1,8 @@
 use std::{cell::RefCell, collections::HashMap};
 
 use indices::{IndexBuilderEnum, IndexEnum};
-use mem_dbg::{MemDbg, MemSize};
+use mem_dbg::{MemDbg, MemSize, SizeFlags};
+use pyo3::pyclass;
 use sketchers::{SketcherBuilderEnum, SketcherEnum};
 use utils::{Stats, Timer, INIT_TRACE};
 
@@ -161,13 +162,23 @@ impl UIndex {
         timer.next("Build");
         let ms_index = index_params.build_with_stats(ms_seq.0, sketcher.width(), &stats);
         drop(timer);
-        Self {
+        let uindex = Self {
             seq,
             sketcher,
             ms_index,
             query_stats: RefCell::new(QueryStats::default()),
             stats,
-        }
+        };
+        uindex.stats.add(
+            "seq_size_MB",
+            uindex.seq.mem_size(SizeFlags::default()) as f32 / 1000000.,
+        );
+        let sketch_size = uindex.sketcher.mem_size(SizeFlags::default()) as f32 / 1000000.;
+        uindex.stats.add("sketch_size_MB", sketch_size);
+        let index_size = uindex.ms_index.mem_size(SizeFlags::default()) as f32 / 1000000.;
+        uindex.stats.add("index_size_MB", index_size);
+        uindex.stats.add("total_size_MB", sketch_size + index_size);
+        uindex
     }
 
     pub fn stats(&self) -> HashMap<&'static str, f32> {
