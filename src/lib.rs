@@ -123,6 +123,15 @@ struct QueryStats {
     mismatches: usize,
     /// Matches.
     matches: usize,
+
+    /// Total time in ns of sketching queries.
+    t_sketch: usize,
+    /// Total time in ns of looking up queries in the minimizer space index.
+    t_search: usize,
+    /// Total time in ns of converting the ms position back to the plain position.
+    t_invert_pos: usize,
+    /// Total time in ns checking matches.
+    t_check: usize,
 }
 
 impl<'s> Drop for UIndex<'s> {
@@ -165,6 +174,13 @@ impl<'s> UIndex<'s> {
         stats.set("query_out_of_bounds", qs.out_of_bounds);
         stats.set("query_mismatches", qs.mismatches);
         stats.set("query_matches", qs.matches);
+        stats.set("t_query_sketch", qs.t_sketch as f32 / 1_000_000_000.);
+        stats.set("t_query_search", qs.t_search as f32 / 1_000_000_000.);
+        stats.set(
+            "t_query_invert_pos",
+            qs.t_invert_pos as f32 / 1_000_000_000.,
+        );
+        stats.set("t_query_check", qs.t_check as f32 / 1_000_000_000.);
 
         stats.into()
     }
@@ -175,6 +191,7 @@ impl<'s> UIndex<'s> {
     /// Returns `None` if the pattern is too short to contain a minimizer.
     /// When the pattern contains an unknown minimizer, an empty iterator is returned.
     pub fn query<'p>(&'p self, pattern: Seq<'p>) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
+        let t1 = std::time::Instant::now();
         let (ms_pattern, offset) = match self.sketcher.sketch(pattern) {
             Ok(x) => x,
             Err(SketchError::TooShort) => {
@@ -186,7 +203,12 @@ impl<'s> UIndex<'s> {
                 return Some(Box::new(std::iter::empty()));
             }
         };
+        let t2 = std::time::Instant::now();
+        self.query_stats.borrow_mut().t_sketch += t2.duration_since(t1).subsec_nanos() as usize;
         let ms_occ = self.ms_index.query(&ms_pattern.0);
+        let t3 = std::time::Instant::now();
+        self.query_stats.borrow_mut().t_search += t3.duration_since(t2).subsec_nanos() as usize;
+        let mut last = t3;
         Some(Box::new(ms_occ.filter_map(move |ms_pos| {
             // Checking:
             // 1. Map minimizer space pos back to original space.
@@ -199,6 +221,10 @@ impl<'s> UIndex<'s> {
                 self.query_stats.borrow_mut().misaligned_ms_pos += 1;
                 None
             })?;
+            let t4 = std::time::Instant::now();
+            self.query_stats.borrow_mut().t_invert_pos +=
+                t4.duration_since(last).subsec_nanos() as usize;
+
             let pos = plain_pos.checked_sub(offset).or_else(|| {
                 self.query_stats.borrow_mut().out_of_bounds += 1;
                 None
@@ -210,6 +236,11 @@ impl<'s> UIndex<'s> {
                 self.query_stats.borrow_mut().out_of_bounds += 1;
                 None
             })? == pattern;
+            let t5 = std::time::Instant::now();
+            self.query_stats.borrow_mut().t_check +=
+                t5.duration_since(last).subsec_nanos() as usize;
+            last = t5;
+
             if matches {
                 self.query_stats.borrow_mut().matches += 1;
                 Some(pos)
