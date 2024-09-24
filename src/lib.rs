@@ -52,11 +52,13 @@ pub trait IndexBuilder {
     type Index: Index + 'static;
 
     /// Build an index on the text, and keep track of statistics.
-    fn build_with_stats(&self, text: Sequence, stats: &Stats) -> Self::Index;
+    /// `width` gives the width of each minimizer in bytes.
+    /// Effectively, only a suffix array on the `width` byte wide integers is needed.
+    fn build_with_stats(&self, text: Sequence, width: usize, stats: &Stats) -> Self::Index;
 
     /// Build an index on the text.
-    fn build(&self, text: Sequence) -> Self::Index {
-        self.build_with_stats(text, &Stats::default())
+    fn build(&self, text: Sequence, width: usize) -> Self::Index {
+        self.build_with_stats(text, width, &Stats::default())
     }
 }
 
@@ -87,6 +89,9 @@ pub enum SketchError {
 }
 
 pub trait Sketcher: MemSize + MemDbg {
+    /// Returns the width in bytes of each minimizer.
+    fn width(&self) -> usize;
+
     /// Take an input text, compute its minimizers, and compress those into the
     /// target `u8` alphabet. This could be done a few ways, e.g.:
     /// - concatenating the KmerVals,
@@ -154,7 +159,7 @@ impl UIndex {
         let mut timer = Timer::new_stats("Sketch", &stats);
         let (sketcher, ms_seq) = sketch_params.sketch_with_stats(&seq, &stats);
         timer.next("Build");
-        let ms_index = index_params.build_with_stats(ms_seq.0, &stats);
+        let ms_index = index_params.build_with_stats(ms_seq.0, sketcher.width(), &stats);
         drop(timer);
         Self {
             seq,
@@ -289,7 +294,7 @@ mod test {
     fn test_identity_simple() {
         let seq = b"ACGTACGTACGTACGT";
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
         let uindex = UIndex::build(seq.to_vec(), sketcher, ms_index);
         let query = b"ACGT";
         let mut occ = uindex.query(query).unwrap().collect::<Vec<_>>();
@@ -302,7 +307,7 @@ mod test {
             .map(|_i| rand::random::<u8>())
             .collect::<Vec<_>>();
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
         for _ in 0..1000 {
             let len = rand::random::<usize>() % 100;
@@ -321,7 +326,7 @@ mod test {
             .map(|_i| rand::random::<u8>())
             .collect::<Vec<_>>();
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
         for _ in 0..1000 {
             let len = 6;
@@ -337,7 +342,7 @@ mod test {
             .collect::<Vec<_>>();
 
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
 
         for remap in [false, true] {
@@ -374,7 +379,7 @@ mod test {
             .collect::<Vec<_>>();
 
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
         let index = UIndex::build(seq.clone(), sketcher, ms_index);
 
         for remap in [false, true] {
@@ -418,7 +423,7 @@ mod test {
                     let mut timer = Timer::new("Build");
                     trace!("remap {remap} l {l} k {k}");
                     let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams { l, k, remap });
-                    let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa);
+                    let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                     trace!(
                         "Index size:   {} MB",

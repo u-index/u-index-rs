@@ -137,6 +137,10 @@ impl MinimizerSketcher {
 }
 
 impl Sketcher for MinimizerSketcher {
+    fn width(&self) -> usize {
+        self.kmer_width
+    }
+
     fn sketch(&self, seq: Seq) -> Result<(MsSequence, usize), SketchError> {
         let (min_poss, min_vals): (Vec<Pos>, Vec<KmerVal>) = self.params.minimizers(seq).unzip();
         let offset = *min_poss.first().ok_or(SketchError::TooShort)?;

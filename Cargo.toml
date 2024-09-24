@@ -10,7 +10,7 @@ incremental = true
 
 [dependencies]
 itertools = "0.13.0"
-libdivsufsort-rs = "0.1.3"
+libdivsufsort-rs = "0.1.4"
 mem_dbg = "0.2.4"
 minimizers = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/minimizers", default-features = false}
 num-traits = "0.2.19"

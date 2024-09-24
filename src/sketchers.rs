@@ -23,6 +23,10 @@ impl SketcherBuilder for IdentityParams {
 }
 
 impl Sketcher for Identity {
+    fn width(&self) -> usize {
+        1
+    }
+
     fn sketch(&self, seq: Seq) -> Result<(MsSequence, usize), SketchError> {
         Ok((MsSequence(seq.to_vec()), 0))
     }
@@ -62,6 +66,13 @@ impl SketcherBuilder for SketcherBuilderEnum {
 }
 
 impl Sketcher for SketcherEnum {
+    fn width(&self) -> usize {
+        match self {
+            SketcherEnum::Identity(sketcher) => sketcher.width(),
+            SketcherEnum::Minimizer(sketcher) => sketcher.width(),
+        }
+    }
+
     fn sketch(&self, seq: Seq) -> Result<(MsSequence, usize), SketchError> {
         match self {
             SketcherEnum::Identity(sketcher) => sketcher.sketch(seq),

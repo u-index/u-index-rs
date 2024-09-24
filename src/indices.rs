@@ -1,3 +1,6 @@
+//! TODO: FM-index:
+//! - faster-minuter
+//! - quad-wavelet-tree
 mod sa_divsufsort;
 
 use mem_dbg::{MemDbg, MemSize};
@@ -19,10 +22,10 @@ pub enum IndexEnum {
 impl IndexBuilder for IndexBuilderEnum {
     type Index = IndexEnum;
 
-    fn build_with_stats(&self, text: crate::Sequence, stats: &Stats) -> Self::Index {
+    fn build_with_stats(&self, text: crate::Sequence, width: usize, stats: &Stats) -> Self::Index {
         match self {
             IndexBuilderEnum::DivSufSortSa(builder) => {
-                IndexEnum::SuffixArray(builder.build_with_stats(text, stats))
+                IndexEnum::SuffixArray(builder.build_with_stats(text, width, stats))
             }
         }
     }

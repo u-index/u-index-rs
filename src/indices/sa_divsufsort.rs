@@ -8,17 +8,23 @@ use crate::{
 
 /// Build a 32-bit suffix array using `libdivsufsort`.
 #[derive(Clone, Copy)]
-pub struct DivSufSortSa;
+pub struct DivSufSortSa {
+    pub compress: bool,
+}
 
 impl IndexBuilder for DivSufSortSa {
     type Index = SuffixArray;
 
-    fn build_with_stats(&self, seq: Sequence, stats: &Stats) -> Self::Index {
+    fn build_with_stats(&self, seq: Sequence, width: usize, stats: &Stats) -> Self::Index {
         let timer = Timer::new_stats("Building suffix array", stats);
         trace!("MS sequence length {}", seq.len());
         stats.set("sequence length", seq.len());
-        let sa = libdivsufsort_rs::divsufsort(&seq).expect("suffix array");
+        let mut sa = libdivsufsort_rs::divsufsort(&seq).expect("suffix array");
         drop(timer);
+
+        if self.compress {
+            sa.retain(|x| *x % width as i32 == 0);
+        }
 
         SuffixArray { sa, seq }
     }
