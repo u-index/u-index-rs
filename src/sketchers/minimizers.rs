@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 use mem_dbg::{MemDbg, MemSize};
-use minimizers::simd::packed::IntoBpIterator;
 use sux::traits::IndexedSeq;
 use tracing::trace;
 
@@ -35,11 +34,26 @@ impl MinimizerParams {
     }
 
     fn minimizers<'s>(&'s self, seq: Seq<'s>) -> impl Iterator<Item = (Pos, KmerVal)> + 's {
+        minimizers::simd::minimizer::minimizer_scalar_it::<false>(seq, self.k, self.w())
+            .dedup()
+            .map(move |pos| {
+                let pos = pos as usize;
+                (
+                    pos,
+                    packed_seq::Seq::to_packed_word(&&seq[pos..pos + self.k]) as KmerVal,
+                )
+            })
+    }
+
+    fn minimizers_par<'s>(&'s self, seq: Seq<'s>) -> impl Iterator<Item = (Pos, KmerVal)> + 's {
         minimizers::simd::minimizer::minimizer_simd_it::<false>(seq, self.k, self.w())
             .dedup()
             .map(move |pos| {
                 let pos = pos as usize;
-                (pos, (&&seq[pos..pos + self.k]).to_word() as KmerVal)
+                (
+                    pos,
+                    packed_seq::Seq::to_packed_word(&&seq[pos..pos + self.k]) as KmerVal,
+                )
             })
     }
 }
@@ -49,14 +63,14 @@ impl SketcherBuilder for MinimizerParams {
 
     fn sketch_with_stats(&self, seq: Seq, stats: &Stats) -> (Self::Sketcher, MsSequence) {
         assert!(
-            self.k <= KmerVal::BITS as usize / 8,
+            self.k <= KmerVal::BITS as usize / 2,
             "k={} is too large to fit k bytes in a u64",
             self.k
         );
         trace!("Sequence length {}", seq.len());
         stats.set("sequence_length", seq.len());
         let mut timer = Timer::new_stats("computing_minimizers", stats);
-        let (min_poss, min_val): (Vec<Pos>, Vec<KmerVal>) = self.minimizers(seq).unzip();
+        let (min_poss, min_val): (Vec<Pos>, Vec<KmerVal>) = self.minimizers_par(seq).unzip();
         trace!("Num minimizers: {}", min_poss.len());
         stats.set("num_minimizers", min_poss.len());
         let (kmer_map, kmer_width) = if self.remap {
@@ -78,7 +92,8 @@ impl SketcherBuilder for MinimizerParams {
             let kmer_width = kmer_width_bits.div_ceil(8).max(1) as usize;
             (kmer_map, kmer_width)
         } else {
-            (HashMap::new(), self.k.min(8))
+            stats.set("kmer_width_bits", 2 * self.k);
+            (HashMap::new(), self.k.div_ceil(4))
         };
         trace!("kmer_width: {kmer_width} bytes");
         stats.set("kmer_width", kmer_width);
