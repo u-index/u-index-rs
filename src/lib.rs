@@ -8,7 +8,7 @@ use utils::{Stats, Timer, INIT_TRACE};
 
 pub mod indices;
 pub mod sketchers;
-mod utils;
+pub mod utils;
 
 mod bench;
 #[cfg(feature = "python-bindings")]
@@ -273,7 +273,8 @@ impl UIndex {
     }
 }
 
-fn read_human_genome() -> Sequence {
+pub fn read_human_genome() -> Sequence {
+    *INIT_TRACE;
     let mut timer = Timer::new("Reading");
     let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
         panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");

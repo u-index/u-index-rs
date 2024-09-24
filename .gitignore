@@ -2,3 +2,5 @@
 /.env/
 /human-genome.fa
 .ipynb_checkpoints
+/flamegraph.svg
+/perf.data*
