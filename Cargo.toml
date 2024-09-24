@@ -9,6 +9,7 @@ lto = "thin"
 incremental = true
 
 [dependencies]
+cacheline-ef = { git = "https://github.com/ragnargrootkoerkamp/cacheline-ef" }
 itertools = "0.13.0"
 libdivsufsort-rs = "0.1.4"
 mem_dbg = "0.2.4"

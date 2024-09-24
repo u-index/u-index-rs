@@ -362,8 +362,12 @@ mod test {
                     if k > l {
                         continue;
                     }
-                    let sketcher =
-                        SketcherBuilderEnum::Minimizer(sketchers::MinimizerParams { l, k, remap });
+                    let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams {
+                        l,
+                        k,
+                        remap,
+                        cacheline_ef: false,
+                    });
                     let index = UIndex::build(seq.clone(), sketcher, ms_index);
                     for _ in 0..1000 {
                         let len = l + rand::random::<usize>() % 100;
@@ -399,8 +403,12 @@ mod test {
                     if k > l {
                         continue;
                     }
-                    let sketcher =
-                        SketcherBuilderEnum::Minimizer(sketchers::MinimizerParams { l, k, remap });
+                    let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams {
+                        l,
+                        k,
+                        remap,
+                        cacheline_ef: false,
+                    });
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                     for _ in 0..1000 {
                         let len = l + rand::random::<usize>() % 100;
@@ -433,7 +441,12 @@ mod test {
 
                     let mut timer = Timer::new("Build");
                     trace!("remap {remap} l {l} k {k}");
-                    let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams { l, k, remap });
+                    let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams {
+                        l,
+                        k,
+                        remap,
+                        cacheline_ef: false,
+                    });
                     let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                     trace!(
