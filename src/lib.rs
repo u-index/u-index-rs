@@ -329,7 +329,6 @@ pub fn read_human_genome() -> AsciiSeqVec {
 #[cfg(test)]
 mod test {
     use indices::DivSufSortSa;
-    use mem_dbg::SizeFlags;
     use packed_seq::{AsciiSeqVec, SeqVec};
     use sketchers::{IdentityParams, MinimizerParams};
     use tracing::trace;
@@ -459,36 +458,33 @@ mod test {
     fn human_genome() {
         let seq = read_human_genome();
 
-        for l in [200] {
-            for k in [5, 6, 7, 8] {
-                for remap in [true] {
-                    if k > l {
-                        continue;
-                    }
+        let ql = 256;
+        let compress = true;
+        for (k, l) in [(8, 32), (16, 64)] {
+            for remap in [false, true] {
+                if k > l {
+                    continue;
+                }
 
-                    let mut timer = Timer::new("Build");
-                    trace!("remap {remap} l {l} k {k}");
-                    let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams {
-                        l,
-                        k,
-                        remap,
-                        cacheline_ef: false,
-                    });
-                    let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
-                    let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-                    trace!(
-                        "Index size:   {} MB",
-                        uindex.mem_size(SizeFlags::default()) / (1024 * 1024)
-                    );
-                    timer.next("Query");
-                    for _ in 0..5000 {
-                        let len = l + 2 * rand::random::<usize>() % l;
-                        let pos = rand::random::<usize>() % (seq.len() - len);
-                        let query = seq.slice(pos..pos + len);
+                let mut timer = Timer::new("Build");
+                trace!("remap {remap} l {l} k {k}");
+                let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams {
+                    l,
+                    k,
+                    remap,
+                    cacheline_ef: false,
+                });
+                let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress });
+                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+                timer.next("Query");
+                for _ in 0..1000000 {
+                    let pos = rand::random::<usize>() % (seq.len() - ql);
+                    let query = seq.slice(pos..pos + ql);
 
-                        let uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
-                        assert!(uindex_occ.contains(&pos));
-                    }
+                    let bad_ranges_before = uindex.query_stats.borrow().bad_ranges;
+                    let uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+                    let bad_ranges_after = uindex.query_stats.borrow().bad_ranges;
+                    assert!(uindex_occ.contains(&pos) || bad_ranges_after != bad_ranges_before);
                 }
             }
         }
