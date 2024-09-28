@@ -22,7 +22,7 @@ pub enum IndexEnum {
 impl IndexBuilder for IndexBuilderEnum {
     type Index = IndexEnum;
 
-    fn build_with_stats(&self, text: crate::Sequence, width: usize, stats: &Stats) -> Self::Index {
+    fn build_with_stats(&self, text: Vec<u8>, width: usize, stats: &Stats) -> Self::Index {
         match self {
             IndexBuilderEnum::DivSufSortSa(builder) => {
                 IndexEnum::SuffixArray(builder.build_with_stats(text, width, stats))

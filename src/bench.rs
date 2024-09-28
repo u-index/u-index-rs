@@ -1,6 +1,7 @@
 use std::hint::black_box;
 
 use super::*;
+use packed_seq::SeqVec;
 
 impl UIndex {
     /// Take `count` random substrings with length `len` and time querying them.
@@ -21,7 +22,7 @@ impl UIndex {
 
         let mut num_matches = 0;
         for &(s, e) in queries {
-            num_matches += self.query(&self.seq[s..e]).unwrap().count();
+            num_matches += self.query(self.seq.slice(s..e)).unwrap().count();
         }
         black_box(num_matches);
 

@@ -3,8 +3,9 @@ mod minimizers;
 use mem_dbg::{MemDbg, MemSize};
 pub use minimizers::MinimizerParams;
 use minimizers::MinimizerSketcher;
+use packed_seq::{AsciiSeq, Seq};
 
-use crate::{utils::Stats, MsSequence, Seq, SketchError, Sketcher, SketcherBuilder};
+use crate::{utils::Stats, MsSequence, SketchError, Sketcher, SketcherBuilder};
 
 /// 'Sketch' the sequence to itself.
 /// Convenient for testing purposes.
@@ -17,8 +18,8 @@ pub struct Identity;
 impl SketcherBuilder for IdentityParams {
     type Sketcher = Identity;
 
-    fn sketch_with_stats(&self, seq: Seq, _stats: &Stats) -> (Self::Sketcher, MsSequence) {
-        (Identity, MsSequence(seq.to_vec()))
+    fn sketch_with_stats(&self, seq: AsciiSeq, _stats: &Stats) -> (Self::Sketcher, MsSequence) {
+        (Identity, MsSequence(seq.to_vec().seq))
     }
 }
 
@@ -27,8 +28,8 @@ impl Sketcher for Identity {
         1
     }
 
-    fn sketch(&self, seq: Seq) -> Result<(MsSequence, usize), SketchError> {
-        Ok((MsSequence(seq.to_vec()), 0))
+    fn sketch(&self, seq: AsciiSeq) -> Result<(MsSequence, usize), SketchError> {
+        Ok((MsSequence(seq.to_vec().seq), 0))
     }
 
     fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize> {
@@ -51,7 +52,7 @@ pub enum SketcherEnum {
 impl SketcherBuilder for SketcherBuilderEnum {
     type Sketcher = SketcherEnum;
 
-    fn sketch_with_stats(&self, seq: Seq, stats: &Stats) -> (Self::Sketcher, MsSequence) {
+    fn sketch_with_stats(&self, seq: AsciiSeq, stats: &Stats) -> (Self::Sketcher, MsSequence) {
         match self {
             SketcherBuilderEnum::IdentityParams(identity) => {
                 let (sketcher, ms_seq) = identity.sketch_with_stats(seq, stats);
@@ -73,7 +74,7 @@ impl Sketcher for SketcherEnum {
         }
     }
 
-    fn sketch(&self, seq: Seq) -> Result<(MsSequence, usize), SketchError> {
+    fn sketch(&self, seq: AsciiSeq) -> Result<(MsSequence, usize), SketchError> {
         match self {
             SketcherEnum::Identity(sketcher) => sketcher.sketch(seq),
             SketcherEnum::Minimizer(sketcher) => sketcher.sketch(seq),

@@ -15,7 +15,6 @@ libdivsufsort-rs = "0.1.4"
 mem_dbg = "0.2.4"
 minimizers = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/minimizers", default-features = false}
 packed-seq = { version = "0.1.0", git = "https://github.com/rust-seq/packed-seq" }
-# packed-seq = { version = "0.1.0", path = "../packed-seq" }
 num-traits = "0.2.19"
 sux = "0.4.4"
 tracing = { version = "0.1.40", features = ["log"] }
@@ -30,9 +29,6 @@ needletail = "0.5.1"
 # fxhash = "0.2.1"
 # size = "0.4.1"
 # rayon = "1.10.0"
-
-[patch.crates-io]
-mem_dbg = { path = "../forks/mem_dbg-rs/mem_dbg" }
 
 [dev-dependencies]
 
