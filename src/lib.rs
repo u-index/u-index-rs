@@ -5,6 +5,8 @@ use mem_dbg::{MemDbg, MemSize, SizeFlags};
 use packed_seq::{AsciiSeq, AsciiSeqVec, Seq, SeqVec};
 use pyo3::pyclass;
 use sketchers::{SketcherBuilderEnum, SketcherEnum};
+use sux::traits::SuccUnchecked;
+use tracing::trace;
 use utils::{Stats, Timer, INIT_TRACE};
 
 pub mod indices;
@@ -113,6 +115,7 @@ pub struct UIndex {
     ms_index: IndexEnum,
     query_stats: RefCell<QueryStats>,
     stats: Stats,
+    ranges: sux::dict::elias_fano::EfDict,
 }
 
 #[derive(MemSize, MemDbg, Default, Debug)]
@@ -129,6 +132,8 @@ struct QueryStats {
     mismatches: usize,
     /// Matches.
     matches: usize,
+    /// Bad ranges.
+    bad_ranges: usize,
 
     /// Total time in ns of sketching queries.
     t_sketch: usize,
@@ -138,6 +143,8 @@ struct QueryStats {
     t_invert_pos: usize,
     /// Total time in ns checking matches.
     t_check: usize,
+    /// Total time in ns checking ranges.
+    t_ranges: usize,
 }
 
 impl Drop for UIndex {
@@ -151,7 +158,7 @@ impl UIndex {
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
     pub fn build(
-        seq: AsciiSeqVec,
+        mut seq: AsciiSeqVec,
         sketch_params: SketcherBuilderEnum,
         index_params: IndexBuilderEnum,
     ) -> Self {
@@ -162,12 +169,24 @@ impl UIndex {
         timer.next("Build");
         let ms_index = index_params.build_with_stats(ms_seq.0, sketcher.width(), &stats);
         drop(timer);
+
+        // Build seq ranges.
+        let mut ef_ranges = sux::dict::elias_fano::EliasFanoBuilder::new(
+            2 * seq.ranges.len(),
+            seq.ranges.last().unwrap().1,
+        );
+        for (start, end) in std::mem::take(&mut seq.ranges) {
+            ef_ranges.push(start);
+            ef_ranges.push(end);
+        }
+
         let uindex = Self {
             seq,
             sketcher,
             ms_index,
             query_stats: RefCell::new(QueryStats::default()),
             stats,
+            ranges: ef_ranges.build_with_dict(),
         };
         uindex.stats.add(
             "seq_size_MB",
@@ -175,9 +194,16 @@ impl UIndex {
         );
         let sketch_size = uindex.sketcher.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("sketch_size_MB", sketch_size);
+        trace!("Sketch size:   {sketch_size:>8.3} MB",);
         let index_size = uindex.ms_index.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("index_size_MB", index_size);
-        uindex.stats.add("total_size_MB", sketch_size + index_size);
+        trace!("Index  size:   {index_size:>8.3} MB",);
+        let ranges_size = uindex.ranges.mem_size(SizeFlags::default()) as f32 / 1000000.;
+        uindex.stats.add("ranges_size_MB", index_size);
+        trace!("Ranges size:   {ranges_size:>8.3} MB",);
+        let total_size = sketch_size + index_size + ranges_size;
+        uindex.stats.add("total_size_MB", total_size);
+        trace!("Total  size:   {total_size:>8.3} MB",);
         uindex
     }
 
@@ -240,34 +266,49 @@ impl UIndex {
                 self.query_stats.borrow_mut().misaligned_ms_pos += 1;
                 None
             })?;
-            let t4 = std::time::Instant::now();
+            let t = std::time::Instant::now();
             self.query_stats.borrow_mut().t_invert_pos +=
-                t4.duration_since(last).subsec_nanos() as usize;
+                t.duration_since(last).subsec_nanos() as usize;
+            last = t;
 
-            let pos = plain_pos.checked_sub(offset).or_else(|| {
+            let start = plain_pos.checked_sub(offset).or_else(|| {
                 self.query_stats.borrow_mut().out_of_bounds += 1;
                 None
             })?;
 
             // The `get` fails when the minimizer match is too close to the end
             // and the pattern doesn't fit after it.
-            if pos + pattern.len() > self.seq.len() {
+            let end = start + pattern.len();
+            if end > self.seq.len() {
                 self.query_stats.borrow_mut().out_of_bounds += 1;
                 return None;
             }
-            let matches = self.seq.slice(pos..pos + pattern.len()) == pattern;
-            let t5 = std::time::Instant::now();
-            self.query_stats.borrow_mut().t_check +=
-                t5.duration_since(last).subsec_nanos() as usize;
-            last = t5;
 
-            if matches {
-                self.query_stats.borrow_mut().matches += 1;
-                Some(pos)
-            } else {
+            let matches = self.seq.slice(start..end) == pattern;
+            let t = std::time::Instant::now();
+            self.query_stats.borrow_mut().t_check += t.duration_since(last).subsec_nanos() as usize;
+            last = t;
+            if !matches {
                 self.query_stats.borrow_mut().mismatches += 1;
-                None
+                return None;
             }
+
+            // Check that the range is fully inside a single input read.
+            // self.ranges.index_of(start);
+            let range_end = unsafe { self.ranges.succ_unchecked::<true>(start).1 };
+
+            let t = std::time::Instant::now();
+            self.query_stats.borrow_mut().t_ranges +=
+                t.duration_since(last).subsec_nanos() as usize;
+            last = t;
+
+            if end > range_end {
+                self.query_stats.borrow_mut().bad_ranges += 1;
+                return None;
+            }
+
+            self.query_stats.borrow_mut().matches += 1;
+            Some(start)
         })))
     }
 }
@@ -280,9 +321,7 @@ pub fn read_human_genome() -> AsciiSeqVec {
     };
     let mut seq = AsciiSeqVec::default();
     while let Some(r) = reader.next() {
-        let r = r.unwrap();
-        seq.push_seq(AsciiSeq(&r.seq()));
-        break;
+        seq.push_seq(AsciiSeq(&r.unwrap().seq()));
     }
     seq
 }
