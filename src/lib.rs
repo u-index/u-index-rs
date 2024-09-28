@@ -274,7 +274,7 @@ impl UIndex {
 
 pub fn read_human_genome() -> AsciiSeqVec {
     *INIT_TRACE;
-    let timer = Timer::new("Reading");
+    let _timer = Timer::new("Reading");
     let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
         panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
     };
@@ -284,7 +284,6 @@ pub fn read_human_genome() -> AsciiSeqVec {
         seq.push_seq(AsciiSeq(&r.seq()));
         break;
     }
-    drop(timer);
     seq
 }
 
