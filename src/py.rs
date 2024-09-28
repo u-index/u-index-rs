@@ -10,14 +10,14 @@ use pyo3::prelude::*;
 use sketchers::{IdentityParams, MinimizerParams};
 
 #[pyfunction]
-pub fn read() -> PyResult<Vec<u8>> {
-    Ok(super::read_human_genome().0)
+pub fn read() -> PyResult<AsciiSeqVec> {
+    Ok(super::read_human_genome())
 }
 
 #[pyfunction]
-pub fn build_plain(seq: Vec<u8>) -> PyResult<UIndex> {
+pub fn build_plain(seq: AsciiSeqVec) -> PyResult<UIndex> {
     Ok(UIndex::build(
-        AsciiSeqVec(seq),
+        seq,
         SketcherBuilderEnum::IdentityParams(IdentityParams),
         IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false }),
     ))
@@ -25,7 +25,7 @@ pub fn build_plain(seq: Vec<u8>) -> PyResult<UIndex> {
 
 #[pyfunction]
 pub fn build_minimized(
-    seq: Vec<u8>,
+    seq: AsciiSeqVec,
     k: usize,
     l: usize,
     remap: bool,
@@ -33,7 +33,7 @@ pub fn build_minimized(
     cacheline_ef: bool,
 ) -> PyResult<UIndex> {
     Ok(UIndex::build(
-        AsciiSeqVec(seq),
+        seq,
         SketcherBuilderEnum::Minimizer(MinimizerParams {
             k,
             l,

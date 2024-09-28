@@ -1116,6 +1116,7 @@ version = "0.1.0"
 dependencies = [
  "epserde",
  "mem_dbg",
+ "pyo3",
  "rand",
  "wide",
 ]
