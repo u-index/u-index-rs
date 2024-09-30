@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cacheline_ef::CachelineEfVec;
 use itertools::Itertools;
 use mem_dbg::{MemDbg, MemSize};
-use packed_seq::{AsciiSeq, Seq};
+use packed_seq::Seq;
 use sux::traits::IndexedSeq;
 use tracing::trace;
 
@@ -37,7 +37,7 @@ impl MinimizerParams {
         self.l - self.k + 1
     }
 
-    fn minimizers<'s>(&'s self, seq: AsciiSeq<'s>) -> impl Iterator<Item = (Pos, KmerVal)> + 's {
+    fn minimizers<'s>(&'s self, seq: impl Seq + 's) -> impl Iterator<Item = (Pos, KmerVal)> + 's {
         minimizers::simd::minimizer::minimizer_scalar_it::<false>(seq, self.k, self.w())
             .dedup()
             .map(move |pos| {
@@ -51,7 +51,7 @@ impl MinimizerParams {
 
     fn minimizers_par<'s>(
         &'s self,
-        seq: AsciiSeq<'s>,
+        seq: impl Seq + 's,
     ) -> impl Iterator<Item = (Pos, KmerVal)> + 's {
         minimizers::simd::minimizer::minimizer_simd_it::<false>(seq, self.k, self.w())
             .dedup()
@@ -65,10 +65,10 @@ impl MinimizerParams {
     }
 }
 
-impl SketcherBuilder for MinimizerParams {
+impl<S: Seq> SketcherBuilder<S> for MinimizerParams {
     type Sketcher = MinimizerSketcher;
 
-    fn sketch_with_stats(&self, seq: AsciiSeq, stats: &Stats) -> (Self::Sketcher, MsSequence) {
+    fn sketch_with_stats(&self, seq: S, stats: &Stats) -> (Self::Sketcher, MsSequence) {
         assert!(
             self.k <= KmerVal::BITS as usize / 2,
             "k={} is too large to fit k bytes in a u64",
@@ -172,12 +172,12 @@ impl MinimizerSketcher {
     }
 }
 
-impl Sketcher for MinimizerSketcher {
+impl<S: Seq> Sketcher<S> for MinimizerSketcher {
     fn width(&self) -> usize {
         self.kmer_width
     }
 
-    fn sketch(&self, seq: AsciiSeq) -> Result<(MsSequence, usize), SketchError> {
+    fn sketch(&self, seq: S) -> Result<(MsSequence, usize), SketchError> {
         let (min_poss, min_vals): (Vec<Pos>, Vec<KmerVal>) = self.params.minimizers(seq).unzip();
         let offset = *min_poss.first().ok_or(SketchError::TooShort)?;
         Ok((

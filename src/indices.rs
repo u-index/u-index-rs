@@ -19,6 +19,14 @@ pub enum IndexEnum {
     SuffixArray(SuffixArray),
 }
 
+impl IndexEnum {
+    pub fn inner(&self) -> &SuffixArray {
+        match self {
+            IndexEnum::SuffixArray(index) => &index,
+        }
+    }
+}
+
 impl IndexBuilder for IndexBuilderEnum {
     type Index = IndexEnum;
 

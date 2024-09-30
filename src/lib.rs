@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap};
 
 use indices::{IndexBuilderEnum, IndexEnum};
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
-use packed_seq::{AsciiSeq, AsciiSeqVec, Seq, SeqVec};
+use packed_seq::{Seq, SeqVec};
 use pyo3::pyclass;
 use sketchers::{SketcherBuilderEnum, SketcherEnum};
 use sux::traits::SuccUnchecked;
@@ -48,6 +48,11 @@ mod py;
 /// A minimizer space sequence.
 pub struct MsSequence(Vec<u8>);
 
+// type SV = packed_seq::PackedSeqVec;
+// type S<'s> = packed_seq::PackedSeq<'s>;
+type SV = packed_seq::AsciiSeqVec;
+type S<'s> = packed_seq::AsciiSeq<'s>;
+
 /// A generic index to locate strings.
 /// The index owns the input text.
 pub trait IndexBuilder {
@@ -70,14 +75,14 @@ pub trait Index: MemSize + MemDbg {
 }
 
 /// Sketch a plain sequence to minimizer space.
-pub trait SketcherBuilder {
-    type Sketcher: Sketcher + 'static;
+pub trait SketcherBuilder<S: Seq> {
+    type Sketcher: Sketcher<S> + 'static;
     /// Take an input text, find its minimizers, and compress to the target space.
     /// Additionally log statistics to `stats`.
-    fn sketch_with_stats(&self, seq: AsciiSeq, stats: &Stats) -> (Self::Sketcher, MsSequence);
+    fn sketch_with_stats(&self, seq: S, stats: &Stats) -> (Self::Sketcher, MsSequence);
 
     /// Take an input text, find its minimizers, and compress to the target space.
-    fn sketch(&self, seq: AsciiSeq) -> (Self::Sketcher, MsSequence) {
+    fn sketch(&self, seq: S) -> (Self::Sketcher, MsSequence) {
         self.sketch_with_stats(seq, &Stats::default())
     }
 }
@@ -90,7 +95,7 @@ pub enum SketchError {
     UnknownMinimizer,
 }
 
-pub trait Sketcher: MemSize + MemDbg {
+pub trait Sketcher<S: Seq>: MemSize + MemDbg {
     /// Returns the width in bytes of each minimizer.
     fn width(&self) -> usize;
 
@@ -100,7 +105,7 @@ pub trait Sketcher: MemSize + MemDbg {
     /// - using a hash function to map the KmerVals to a smaller range.
     /// Also returns the position in `seq` of the first minimizer.
     /// Returns `None` when `seq` is too short to contain a minimizer.
-    fn sketch(&self, seq: AsciiSeq) -> Result<(MsSequence, usize), SketchError>;
+    fn sketch(&self, seq: S) -> Result<(MsSequence, usize), SketchError>;
 
     /// Take a position of a character in the minimizer space, and return its start position in the original sequence.
     /// Returns `None` when the position in the minimizer space text is not aligned with the size of the encoded minimizers.
@@ -110,7 +115,7 @@ pub trait Sketcher: MemSize + MemDbg {
 #[derive(MemSize, MemDbg)]
 #[pyclass]
 pub struct UIndex {
-    seq: AsciiSeqVec,
+    seq: SV,
     sketcher: SketcherEnum,
     ms_index: IndexEnum,
     query_stats: RefCell<QueryStats>,
@@ -158,7 +163,7 @@ impl UIndex {
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
     pub fn build(
-        mut seq: AsciiSeqVec,
+        mut seq: SV,
         sketch_params: SketcherBuilderEnum,
         index_params: IndexBuilderEnum,
     ) -> Self {
@@ -167,15 +172,19 @@ impl UIndex {
         let mut timer = Timer::new_stats("Sketch", &stats);
         let (sketcher, ms_seq) = sketch_params.sketch_with_stats(seq.as_slice(), &stats);
         timer.next("Build");
-        let ms_index = index_params.build_with_stats(ms_seq.0, sketcher.width(), &stats);
+        let ms_index = index_params.build_with_stats(
+            ms_seq.0,
+            Sketcher::<<SV as SeqVec>::Seq<'_>>::width(&sketcher),
+            &stats,
+        );
         drop(timer);
 
         // Build seq ranges.
         let mut ef_ranges = sux::dict::elias_fano::EliasFanoBuilder::new(
-            2 * seq.ranges.len(),
-            seq.ranges.last().unwrap().1,
+            2 * seq.ranges().len(),
+            seq.ranges().last().unwrap().1,
         );
-        for (start, end) in std::mem::take(&mut seq.ranges) {
+        for (start, end) in std::mem::take(seq.ranges()) {
             ef_ranges.push(start);
             ef_ranges.push(end);
         }
@@ -234,7 +243,7 @@ impl UIndex {
     /// When the pattern contains an unknown minimizer, an empty iterator is returned.
     pub fn query<'p>(
         &'p self,
-        pattern: AsciiSeq<'p>,
+        pattern: <SV as SeqVec>::Seq<'p>,
     ) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
         let t1 = std::time::Instant::now();
         let (ms_pattern, offset) = match self.sketcher.sketch(pattern) {
@@ -262,10 +271,12 @@ impl UIndex {
             // The sketcher returns None when `ms_pos` does not align with a minimizer position.
             // The `checked_sub` fails when the minimizer is very close to the
             // start, and the `offset` doesn't fit before.
-            let plain_pos = self.sketcher.ms_pos_to_plain_pos(ms_pos).or_else(|| {
-                self.query_stats.borrow_mut().misaligned_ms_pos += 1;
-                None
-            })?;
+            let plain_pos =
+                Sketcher::<<SV as SeqVec>::Seq<'_>>::ms_pos_to_plain_pos(&self.sketcher, ms_pos)
+                    .or_else(|| {
+                        self.query_stats.borrow_mut().misaligned_ms_pos += 1;
+                        None
+                    })?;
             let t = std::time::Instant::now();
             self.query_stats.borrow_mut().t_invert_pos +=
                 t.duration_since(last).subsec_nanos() as usize;
@@ -313,15 +324,15 @@ impl UIndex {
     }
 }
 
-pub fn read_human_genome() -> AsciiSeqVec {
+pub fn read_human_genome() -> SV {
     *INIT_TRACE;
     let _timer = Timer::new("Reading");
     let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
         panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
     };
-    let mut seq = AsciiSeqVec::default();
+    let mut seq = SV::default();
     while let Some(r) = reader.next() {
-        seq.push_seq(AsciiSeq(&r.unwrap().seq()));
+        seq.push_ascii(&r.unwrap().seq());
     }
     seq
 }
@@ -329,7 +340,7 @@ pub fn read_human_genome() -> AsciiSeqVec {
 #[cfg(test)]
 mod test {
     use indices::DivSufSortSa;
-    use packed_seq::{AsciiSeqVec, SeqVec};
+    use packed_seq::SeqVec;
     use sketchers::{IdentityParams, MinimizerParams};
     use tracing::trace;
 
@@ -337,18 +348,18 @@ mod test {
 
     #[test]
     fn test_identity_simple() {
-        let seq = AsciiSeq(b"ACGTACGTACGTACGT");
+        let seq = SV::from_ascii(b"ACGTACGTACGTACGT");
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
-        let uindex = UIndex::build(seq.to_vec(), sketcher, ms_index);
-        let query = AsciiSeq(b"ACGT");
-        let mut occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+        let uindex = UIndex::build(seq, sketcher, ms_index);
+        let query = SV::from_ascii(b"ACGT");
+        let mut occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
         occ.sort();
         assert_eq!(occ, vec![0, 4, 8, 12]);
     }
     #[test]
     fn test_identity_positive() {
-        let seq = AsciiSeqVec::random(1000000);
+        let seq = SV::random(1000000);
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
@@ -365,20 +376,20 @@ mod test {
     }
     #[test]
     fn test_identity_negative() {
-        let seq = AsciiSeqVec::random(1000000);
+        let seq = SV::random(1000000);
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
         for _ in 0..1000 {
             let len = 16;
-            let query = AsciiSeqVec::random(len);
+            let query = SV::random(len);
             let occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
             assert_eq!(occ.len(), 0);
         }
     }
     #[test]
     fn test_minspace_positive() {
-        let seq = AsciiSeqVec::random(1000000);
+        let seq = SV::random(1000000);
 
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
@@ -417,7 +428,7 @@ mod test {
     }
     #[test]
     fn test_minspace_negative() {
-        let seq = AsciiSeqVec::random(1000000);
+        let seq = SV::random(1000000);
 
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
@@ -438,7 +449,7 @@ mod test {
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                     for _ in 0..1000 {
                         let len = l + rand::random::<usize>() % 100;
-                        let query = AsciiSeqVec::random(len);
+                        let query = SV::random(len);
 
                         let mut index_occ =
                             index.query(query.as_slice()).unwrap().collect::<Vec<_>>();
