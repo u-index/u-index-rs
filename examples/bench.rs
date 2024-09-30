@@ -10,8 +10,8 @@ fn main() {
     let seq = read_human_genome();
 
     let sketch_params = SketcherBuilderEnum::Minimizer(MinimizerParams {
-        k: 8,
-        l: 32,
+        k: 16,
+        l: 64,
         remap: false,
         cacheline_ef: false,
     });
