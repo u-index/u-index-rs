@@ -60,19 +60,20 @@ impl SuffixArray {
         &self,
         seq: S<'i>,
         p: &[u8],
+        // Byte index in ms_seq.
         i: usize,
+        // Byte index in pattern.
         j: usize,
         sketcher: &impl Sketcher,
     ) -> Ordering {
+        let w = sketcher.width() as usize;
         if let Some(ms_seq) = &self.ms_seq {
-            let w = sketcher.width();
-            let t = &ms_seq[w * i..w * (i + 1)];
-            let p = &p[w * j..w * (j + 1)];
+            let t = &ms_seq[i..i + w];
+            let p = &p[j..j + w];
             t.cmp(p)
         } else {
-            let w = sketcher.width();
-            let t = sketcher.get_ms_minimizer_via_plaintext(seq, w * i).unwrap();
-            let p = sketcher.get_ms_minimizer(p, w * j).unwrap();
+            let t = sketcher.get_ms_minimizer_via_plaintext(seq, i).unwrap();
+            let p = sketcher.get_ms_minimizer(p, j).unwrap();
             t.cmp(&p)
         }
     }
@@ -82,35 +83,39 @@ impl SuffixArray {
         sketcher: &impl Sketcher,
         seq: S<'i>,
         p: &[u8],
+        // Byte-position in the sketched text that we compare against.
+        // Must be a multiple of the kmer width.
         suf: i32,
+        // Number of bytes of pattern already matched.
+        // Must be a multiple of the kmer width when matching full minimizers at a time.
         match_: &mut i32,
     ) -> Ordering {
         let w = sketcher.width() as i32;
 
         debug_assert_eq!(suf % w, 0);
-        let mut i = suf / w + *match_;
-        let mut j = *match_;
-        let mut r = Ordering::Equal;
-
-        let ms_seq_len = sketcher.len() as i32;
-        let pattern_len = (p.len() as i32) / w;
         debug_assert!(p.len() as i32 % w == 0);
         if let Some(ms_seq) = &self.ms_seq {
             debug_assert!(ms_seq.len() as i32 % w == 0);
         }
 
+        let mut i = suf + *match_;
+        let mut j = *match_;
+        let mut r = Ordering::Equal;
+
+        let ms_seq_len = sketcher.len() as i32 * w;
+        let pattern_len = p.len() as i32;
+
         while i < ms_seq_len as i32 && j < pattern_len {
             r = self.compare_minimizers(seq, p, i as usize, j as usize, sketcher);
-            // r = t[i as usize] as i32 - p[j as usize] as i32;
             if r != Ordering::Equal {
                 break;
             }
-            i += 1;
-            j += 1;
+            i += w;
+            j += w;
         }
         *match_ = j;
         if r.is_eq() {
-            if w * j != p.len() as i32 {
+            if j != p.len() as i32 {
                 r = Ordering::Less;
             }
         }
