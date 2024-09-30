@@ -59,7 +59,7 @@ impl SuffixArray {
     fn compare_minimizers<'i>(
         &self,
         seq: S<'i>,
-        p: &[u8],
+        pattern: &[u8],
         // Byte index in ms_seq.
         i: usize,
         // Byte index in pattern.
@@ -69,11 +69,11 @@ impl SuffixArray {
         let w = sketcher.width() as usize;
         if let Some(ms_seq) = &self.ms_seq {
             let t = &ms_seq[i..i + w];
-            let p = &p[j..j + w];
+            let p = &pattern[j..j + w];
             t.cmp(p)
         } else {
             let t = sketcher.get_ms_minimizer_via_plaintext(seq, i).unwrap();
-            let p = sketcher.get_ms_minimizer(p, j).unwrap();
+            let p = sketcher.get_ms_minimizer(pattern, j).unwrap();
             t.cmp(&p)
         }
     }

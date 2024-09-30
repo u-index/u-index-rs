@@ -48,6 +48,6 @@ impl Sketcher for Identity {
     }
 
     fn get_ms_minimizer_via_plaintext(&self, seq: S, ms_pos: usize) -> Option<usize> {
-        Some(seq.slice(ms_pos..ms_pos + 1).to_word() as usize)
+        Some(seq.0[ms_pos] as usize)
     }
 }
