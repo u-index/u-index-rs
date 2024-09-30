@@ -6,7 +6,7 @@ use mem_dbg::{MemDbg, MemSize};
 use minimizers::MinimizerSketcher;
 use packed_seq::Seq;
 
-use crate::{utils::Stats, MsSequence, SketchError, Sketcher, SketcherBuilder, S};
+use crate::{utils::Stats, MsSequence, SketchError, Sketcher, SketcherBuilder};
 
 pub use identity::IdentityParams;
 pub use minimizers::MinimizerParams;
@@ -26,7 +26,11 @@ pub enum SketcherEnum {
 impl SketcherBuilder for SketcherBuilderEnum {
     type Sketcher = SketcherEnum;
 
-    fn sketch_with_stats(&self, seq: S, stats: &Stats) -> (Self::Sketcher, MsSequence) {
+    fn sketch_with_stats<'s>(
+        &self,
+        seq: impl Seq<'s>,
+        stats: &Stats,
+    ) -> (Self::Sketcher, MsSequence) {
         match self {
             SketcherBuilderEnum::IdentityParams(identity) => {
                 let (sketcher, ms_seq) = identity.sketch_with_stats(seq, stats);
@@ -62,7 +66,7 @@ impl Sketcher for SketcherEnum {
         }
     }
 
-    fn sketch(&self, seq: S) -> Result<(MsSequence, usize), SketchError> {
+    fn sketch<'s>(&self, seq: impl Seq<'s>) -> Result<(MsSequence, usize), SketchError> {
         match self {
             SketcherEnum::Identity(sketcher) => sketcher.sketch(seq),
             SketcherEnum::Minimizer(sketcher) => sketcher.sketch(seq),
@@ -83,7 +87,11 @@ impl Sketcher for SketcherEnum {
         }
     }
 
-    fn get_ms_minimizer_via_plaintext(&self, seq: S, ms_pos: usize) -> Option<usize> {
+    fn get_ms_minimizer_via_plaintext<'s>(
+        &self,
+        seq: impl Seq<'s>,
+        ms_pos: usize,
+    ) -> Option<usize> {
         match self {
             SketcherEnum::Identity(sketcher) => {
                 sketcher.get_ms_minimizer_via_plaintext(seq, ms_pos)

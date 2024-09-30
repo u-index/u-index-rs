@@ -10,7 +10,7 @@ use tracing::trace;
 
 use crate::{
     utils::{Stats, Timer},
-    MsSequence, SketchError, Sketcher, SketcherBuilder, S,
+    MsSequence, SketchError, Sketcher, SketcherBuilder,
 };
 
 /// A packed minimizer representation.
@@ -39,31 +39,35 @@ impl MinimizerParams {
     }
 
     fn minimizers<'s>(
-        &'s self,
+        &self,
         seq: impl Seq<'s>,
     ) -> impl Iterator<Item = (Pos, KmerVal)> + Captures<&'s ()> {
-        minimizers::simd::minimizer::minimizer_scalar_it::<false>(seq, self.k, self.w())
+        let k = self.k;
+        let w = self.w();
+        minimizers::simd::minimizer::minimizer_scalar_it::<false>(seq, k, w)
             .dedup()
             .map(move |pos| {
                 let pos = pos as usize;
                 (
                     pos,
-                    packed_seq::Seq::to_word(&seq.slice(pos..pos + self.k)) as KmerVal,
+                    packed_seq::Seq::to_word(&seq.slice(pos..pos + k)) as KmerVal,
                 )
             })
     }
 
     fn minimizers_par<'s>(
-        &'s self,
+        &self,
         seq: impl Seq<'s>,
     ) -> impl Iterator<Item = (Pos, KmerVal)> + Captures<&'s ()> {
-        minimizers::simd::minimizer::minimizer_simd_it::<false>(seq, self.k, self.w())
+        let k = self.k;
+        let w = self.w();
+        minimizers::simd::minimizer::minimizer_simd_it::<false>(seq, k, w)
             .dedup()
             .map(move |pos| {
                 let pos = pos as usize;
                 (
                     pos,
-                    packed_seq::Seq::to_word(&seq.slice(pos..pos + self.k)) as KmerVal,
+                    packed_seq::Seq::to_word(&seq.slice(pos..pos + k)) as KmerVal,
                 )
             })
     }
@@ -72,7 +76,11 @@ impl MinimizerParams {
 impl SketcherBuilder for MinimizerParams {
     type Sketcher = MinimizerSketcher;
 
-    fn sketch_with_stats(&self, seq: S<'_>, stats: &Stats) -> (Self::Sketcher, MsSequence) {
+    fn sketch_with_stats<'s>(
+        &self,
+        seq: impl Seq<'s>,
+        stats: &Stats,
+    ) -> (Self::Sketcher, MsSequence) {
         assert!(
             self.k <= KmerVal::BITS as usize / 2,
             "k={} is too large to fit k bytes in a u64",
@@ -190,7 +198,7 @@ impl Sketcher for MinimizerSketcher {
         self.min_poss.len()
     }
 
-    fn sketch(&self, seq: S) -> Result<(MsSequence, usize), SketchError> {
+    fn sketch<'s>(&self, seq: impl Seq<'s>) -> Result<(MsSequence, usize), SketchError> {
         let (min_poss, min_vals): (Vec<Pos>, Vec<KmerVal>) = self.params.minimizers(seq).unzip();
         let offset = *min_poss.first().ok_or(SketchError::TooShort)?;
         Ok((
@@ -217,7 +225,11 @@ impl Sketcher for MinimizerSketcher {
         Some(usize::from_be_bytes(val))
     }
 
-    fn get_ms_minimizer_via_plaintext(&self, seq: S, ms_pos: usize) -> Option<usize> {
+    fn get_ms_minimizer_via_plaintext<'s>(
+        &self,
+        seq: impl Seq<'s>,
+        ms_pos: usize,
+    ) -> Option<usize> {
         let pos = self.ms_pos_to_plain_pos(ms_pos)?;
         let kmer = packed_seq::Seq::to_word(&seq.slice(pos..pos + self.params.k)) as KmerVal;
         if self.params.remap {

@@ -1,11 +1,12 @@
 use std::cmp::Ordering;
 
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
+use packed_seq::Seq;
 use tracing::trace;
 
 use crate::{
     utils::{Stats, Timer},
-    Index, IndexBuilder, Sketcher, S,
+    Index, IndexBuilder, Sketcher,
 };
 
 /// Build a 32-bit suffix array using `libdivsufsort`.
@@ -58,7 +59,7 @@ impl SuffixArray {
     #[inline(always)]
     fn compare_minimizers<'i>(
         &self,
-        seq: S<'i>,
+        seq: impl Seq<'i>,
         pattern: &[u8],
         // Byte index in ms_seq.
         i: usize,
@@ -81,7 +82,7 @@ impl SuffixArray {
     fn compare<'i>(
         &self,
         sketcher: &impl Sketcher,
-        seq: S<'i>,
+        seq: impl Seq<'i>,
         p: &[u8],
         // Byte-position in the sketched text that we compare against.
         // Must be a multiple of the kmer width.
@@ -126,7 +127,7 @@ impl SuffixArray {
     // https://github.com/y-256/libdivsufsort/blob/5f60d6f026c30fb4ac296f696b3c8b0eb71bd428/lib/utils.c
     /// Search text `t` for pattern `p` given (sparse) suffix array `sa`.
     /// Returns a `(pos, cnt)` pair where `pos` is the index of the first match and `cnt` is the number of matches.
-    fn sa_search<'i>(&self, sketcher: &impl Sketcher, seq: S<'i>, p: &[u8]) -> (i32, i32) {
+    fn sa_search<'i>(&self, sketcher: &impl Sketcher, seq: impl Seq<'i>, p: &[u8]) -> (i32, i32) {
         let mut size = self.sa.len() as i32;
         let mut half;
         let mut match_;
@@ -226,12 +227,12 @@ impl SuffixArray {
 }
 
 impl Index for SuffixArray {
-    fn query<'i>(
-        &'i self,
+    fn query<'s>(
+        &'s self,
         pattern: &[u8],
-        seq: S<'i>,
+        seq: impl Seq<'s>,
         sketcher: &impl Sketcher,
-    ) -> Box<dyn Iterator<Item = usize> + 'i> {
+    ) -> Box<dyn Iterator<Item = usize> + 's> {
         let (pos, cnt) = self.sa_search(sketcher, seq, pattern);
         return Box::new((pos..pos + cnt).map(move |i| self.sa[i as usize] as usize));
     }

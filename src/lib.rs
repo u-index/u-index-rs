@@ -50,11 +50,9 @@ mod py;
 pub struct MsSequence(Vec<u8>);
 
 // type SV = packed_seq::PackedSeqVec;
-// type S<'s> = packed_seq::PackedSeq<'s>;
 // const PACKED: bool = true;
 
 type SV = packed_seq::AsciiSeqVec;
-type S<'s> = packed_seq::AsciiSeq<'s>;
 const PACKED: bool = false;
 
 /// A generic index to locate strings.
@@ -75,12 +73,12 @@ pub trait IndexBuilder {
 
 pub trait Index: MemSize + MemDbg {
     /// Return all places where the pattern occurs.
-    fn query<'i>(
-        &'i self,
+    fn query<'s>(
+        &'s self,
         pattern: &[u8],
-        seq: S<'i>,
+        seq: impl Seq<'s>,
         sketcher: &impl Sketcher,
-    ) -> Box<dyn Iterator<Item = usize> + 'i>;
+    ) -> Box<dyn Iterator<Item = usize> + 's>;
 }
 
 /// Sketch a plain sequence to minimizer space.
@@ -88,10 +86,14 @@ pub trait SketcherBuilder {
     type Sketcher: Sketcher + 'static;
     /// Take an input text, find its minimizers, and compress to the target space.
     /// Additionally log statistics to `stats`.
-    fn sketch_with_stats(&self, seq: S, stats: &Stats) -> (Self::Sketcher, MsSequence);
+    fn sketch_with_stats<'s>(
+        &self,
+        seq: impl Seq<'s>,
+        stats: &Stats,
+    ) -> (Self::Sketcher, MsSequence);
 
     /// Take an input text, find its minimizers, and compress to the target space.
-    fn sketch(&self, seq: S) -> (Self::Sketcher, MsSequence) {
+    fn sketch<'s>(&self, seq: impl Seq<'s>) -> (Self::Sketcher, MsSequence) {
         self.sketch_with_stats(seq, &Stats::default())
     }
 }
@@ -118,7 +120,7 @@ pub trait Sketcher: MemSize + MemDbg {
     /// - using a hash function to map the KmerVals to a smaller range.
     /// Also returns the position in `seq` of the first minimizer.
     /// Returns `None` when `seq` is too short to contain a minimizer.
-    fn sketch(&self, seq: S) -> Result<(MsSequence, usize), SketchError>;
+    fn sketch<'s>(&self, seq: impl Seq<'s>) -> Result<(MsSequence, usize), SketchError>;
 
     /// Take a *byte* position of a character in the minimizer space, and return its start position in the original sequence.
     /// Returns `None` when the position in the minimizer space text is not aligned with the size of the encoded minimizers.
@@ -128,7 +130,8 @@ pub trait Sketcher: MemSize + MemDbg {
     fn get_ms_minimizer(&self, ms_seq: &[u8], ms_pos: usize) -> Option<usize>;
 
     /// Return the value of the minimizer at the given position in the sketched sequence.
-    fn get_ms_minimizer_via_plaintext(&self, seq: S, ms_pos: usize) -> Option<usize>;
+    fn get_ms_minimizer_via_plaintext<'s>(&self, seq: impl Seq<'s>, ms_pos: usize)
+        -> Option<usize>;
 }
 
 #[derive(MemSize, MemDbg)]
