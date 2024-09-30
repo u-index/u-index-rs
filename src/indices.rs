@@ -7,7 +7,7 @@ use mem_dbg::{MemDbg, MemSize};
 pub use sa_divsufsort::DivSufSortSa;
 use sa_divsufsort::SuffixArray;
 
-use crate::{utils::Stats, Index, IndexBuilder};
+use crate::{utils::Stats, Index, IndexBuilder, Sketcher, S};
 
 #[derive(Clone, Copy)]
 pub enum IndexBuilderEnum {
@@ -40,9 +40,14 @@ impl IndexBuilder for IndexBuilderEnum {
 }
 
 impl Index for IndexEnum {
-    fn query<'i>(&'i self, pattern: &[u8]) -> Box<dyn Iterator<Item = usize> + 'i> {
+    fn query<'i>(
+        &'i self,
+        pattern: &[u8],
+        seq: S<'i>,
+        sketcher: &impl Sketcher<S<'i>>,
+    ) -> Box<dyn Iterator<Item = usize> + 'i> {
         match self {
-            IndexEnum::SuffixArray(index) => index.query(pattern),
+            IndexEnum::SuffixArray(index) => index.query(pattern, seq, sketcher),
         }
     }
 }

@@ -15,7 +15,10 @@ fn main() {
         remap: false,
         cacheline_ef: false,
     });
-    let index_params = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: true });
+    let index_params = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+        store_ms_seq: true,
+        compress: true,
+    });
 
     let u = UIndex::build(seq, sketch_params, index_params);
 

@@ -19,7 +19,10 @@ pub fn build_plain(seq: SV) -> PyResult<UIndex> {
     Ok(UIndex::build(
         seq,
         SketcherBuilderEnum::IdentityParams(IdentityParams),
-        IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false }),
+        IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: false,
+            compress: false,
+        }),
     ))
 }
 
@@ -29,6 +32,7 @@ pub fn build_minimized(
     k: usize,
     l: usize,
     remap: bool,
+    store_ms_seq: bool,
     compress: bool,
     cacheline_ef: bool,
 ) -> PyResult<UIndex> {
@@ -40,7 +44,10 @@ pub fn build_minimized(
             remap,
             cacheline_ef,
         }),
-        IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress }),
+        IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq,
+            compress,
+        }),
     ))
 }
 

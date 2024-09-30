@@ -5,7 +5,7 @@ pub use minimizers::MinimizerParams;
 use minimizers::MinimizerSketcher;
 use packed_seq::{AsciiSeq, PackedSeq, Seq};
 
-use crate::{utils::Stats, MsSequence, SketchError, Sketcher, SketcherBuilder};
+use crate::{utils::Stats, MsSequence, SketchError, Sketcher, SketcherBuilder, S};
 
 /// 'Sketch' the sequence to itself.
 /// Convenient for testing purposes.
@@ -13,13 +13,16 @@ use crate::{utils::Stats, MsSequence, SketchError, Sketcher, SketcherBuilder};
 pub struct IdentityParams;
 
 #[derive(MemSize, MemDbg)]
-pub struct Identity;
+pub struct Identity {
+    len: usize,
+}
 
 impl SketcherBuilder<AsciiSeq<'_>> for IdentityParams {
     type Sketcher = Identity;
 
     fn sketch_with_stats(&self, seq: AsciiSeq, _stats: &Stats) -> (Self::Sketcher, MsSequence) {
-        (Identity, MsSequence(seq.to_vec().seq))
+        let seq = seq.to_vec().seq;
+        (Identity { len: seq.len() }, MsSequence(seq))
     }
 }
 
@@ -28,12 +31,28 @@ impl Sketcher<AsciiSeq<'_>> for Identity {
         1
     }
 
-    fn sketch(&self, seq: AsciiSeq) -> Result<(MsSequence, usize), SketchError> {
+    fn k(&self) -> usize {
+        1
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn sketch(&self, seq: S) -> Result<(MsSequence, usize), SketchError> {
         Ok((MsSequence(seq.to_vec().seq), 0))
     }
 
     fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize> {
         Some(ms_pos)
+    }
+
+    fn get_ms_minimizer(&self, ms_seq: &[u8], ms_pos: usize) -> Option<usize> {
+        Some(ms_seq[ms_pos] as usize)
+    }
+
+    fn get_ms_minimizer_via_plaintext(&self, seq: S, ms_pos: usize) -> Option<usize> {
+        Some(seq.0[ms_pos] as usize)
     }
 }
 
@@ -71,6 +90,20 @@ impl Sketcher<AsciiSeq<'_>> for SketcherEnum {
         match self {
             SketcherEnum::Identity(sketcher) => sketcher.width(),
             SketcherEnum::Minimizer(sketcher) => Sketcher::<AsciiSeq>::width(sketcher),
+        }
+    }
+
+    fn k(&self) -> usize {
+        match self {
+            SketcherEnum::Identity(sketcher) => sketcher.k(),
+            SketcherEnum::Minimizer(sketcher) => Sketcher::<AsciiSeq>::k(sketcher),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            SketcherEnum::Identity(sketcher) => sketcher.len(),
+            SketcherEnum::Minimizer(sketcher) => Sketcher::<AsciiSeq>::len(sketcher),
         }
     }
 
@@ -113,6 +146,20 @@ impl Sketcher<PackedSeq<'_>> for SketcherEnum {
         }
     }
 
+    fn k(&self) -> usize {
+        match self {
+            SketcherEnum::Minimizer(sketcher) => Sketcher::<PackedSeq>::k(sketcher),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            SketcherEnum::Minimizer(sketcher) => Sketcher::<PackedSeq>::len(sketcher),
+            _ => unimplemented!(),
+        }
+    }
+
     fn sketch(&self, seq: PackedSeq<'_>) -> Result<(MsSequence, usize), SketchError> {
         match self {
             SketcherEnum::Minimizer(sketcher) => sketcher.sketch(seq),
@@ -126,6 +173,24 @@ impl Sketcher<PackedSeq<'_>> for SketcherEnum {
                 Sketcher::<PackedSeq>::ms_pos_to_plain_pos(sketcher, ms_pos)
             }
             _ => unimplemented!(),
+        }
+    }
+
+    fn get_ms_minimizer(&self, ms_seq: &[u8], ms_pos: usize) -> Option<usize> {
+        match self {
+            SketcherEnum::Identity(sketcher) => sketcher.get_ms_minimizer(ms_seq, ms_pos),
+            SketcherEnum::Minimizer(sketcher) => sketcher.get_ms_minimizer(ms_seq, ms_pos),
+        }
+    }
+
+    fn get_ms_minimizer_via_plaintext(&self, seq: S, ms_pos: usize) -> Option<usize> {
+        match self {
+            SketcherEnum::Identity(sketcher) => {
+                sketcher.get_ms_minimizer_via_plaintext(seq, ms_pos)
+            }
+            SketcherEnum::Minimizer(sketcher) => {
+                sketcher.get_ms_minimizer_via_plaintext(seq, ms_pos)
+            }
         }
     }
 }

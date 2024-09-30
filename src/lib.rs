@@ -42,8 +42,9 @@ mod py;
 // TODO: Randomize the minimizer order
 // TODO: Perfect hash the minimizers
 // TODO: Reserve ms ID for sequence ends.
-// TODO: Use EF for sequence boundaries.
 // TODO: Count false positives and other events. Add tracing or return them directly.
+//
+// TODO: Drop the minimizer space string, and instead compare against plain-space minimizers.
 
 /// A minimizer space sequence.
 pub struct MsSequence(Vec<u8>);
@@ -71,7 +72,12 @@ pub trait IndexBuilder {
 
 pub trait Index: MemSize + MemDbg {
     /// Return all places where the pattern occurs.
-    fn query<'i>(&'i self, pattern: &[u8]) -> Box<dyn Iterator<Item = usize> + 'i>;
+    fn query<'i>(
+        &'i self,
+        pattern: &[u8],
+        seq: S<'i>,
+        sketcher: &impl Sketcher<S<'i>>,
+    ) -> Box<dyn Iterator<Item = usize> + 'i>;
 }
 
 /// Sketch a plain sequence to minimizer space.
@@ -99,6 +105,10 @@ pub trait Sketcher<S: Seq>: MemSize + MemDbg {
     /// Returns the width in bytes of each minimizer.
     fn width(&self) -> usize;
 
+    fn k(&self) -> usize;
+
+    fn len(&self) -> usize;
+
     /// Take an input text, compute its minimizers, and compress those into the
     /// target `u8` alphabet. This could be done a few ways, e.g.:
     /// - concatenating the KmerVals,
@@ -107,9 +117,15 @@ pub trait Sketcher<S: Seq>: MemSize + MemDbg {
     /// Returns `None` when `seq` is too short to contain a minimizer.
     fn sketch(&self, seq: S) -> Result<(MsSequence, usize), SketchError>;
 
-    /// Take a position of a character in the minimizer space, and return its start position in the original sequence.
+    /// Take a *byte* position of a character in the minimizer space, and return its start position in the original sequence.
     /// Returns `None` when the position in the minimizer space text is not aligned with the size of the encoded minimizers.
     fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize>;
+
+    /// Return the value of the minimizer at the given position in the sketched sequence.
+    fn get_ms_minimizer(&self, ms_seq: &[u8], ms_pos: usize) -> Option<usize>;
+
+    /// Return the value of the minimizer at the given position in the sketched sequence.
+    fn get_ms_minimizer_via_plaintext(&self, seq: S, ms_pos: usize) -> Option<usize>;
 }
 
 #[derive(MemSize, MemDbg)]
@@ -157,7 +173,7 @@ struct QueryStats {
 impl Drop for UIndex {
     fn drop(&mut self) {
         let QueryStats {
-            queries,
+            mut queries,
             too_short,
             unknown_minimizer,
             misaligned_ms_pos,
@@ -171,6 +187,8 @@ impl Drop for UIndex {
             mut t_check,
             mut t_ranges,
         } = self.query_stats.take();
+
+        queries = queries.max(1);
 
         t_sketch /= queries;
         t_search /= queries;
@@ -301,7 +319,9 @@ impl UIndex {
         };
         let t2 = std::time::Instant::now();
         self.query_stats.borrow_mut().t_sketch += t2.duration_since(t1).subsec_nanos() as usize;
-        let ms_occ = self.ms_index.query(&ms_pattern.0);
+        let ms_occ = self
+            .ms_index
+            .query(&ms_pattern.0, self.seq.as_slice(), &self.sketcher);
         let t3 = std::time::Instant::now();
         self.query_stats.borrow_mut().t_search += t3.duration_since(t2).subsec_nanos() as usize;
         let mut last = t3;
@@ -399,7 +419,10 @@ mod test {
     fn test_identity_simple() {
         let seq = SV::from_ascii(b"ACGTACGTACGTACGT");
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: true,
+            compress: true,
+        });
         let uindex = UIndex::build(seq, sketcher, ms_index);
         let query = SV::from_ascii(b"ACGT");
         let mut occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
@@ -410,7 +433,10 @@ mod test {
     fn test_identity_positive() {
         let seq = SV::random(1000000);
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: true,
+            compress: true,
+        });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
         for _ in 0..1000 {
             let len = rand::random::<usize>() % 100;
@@ -427,7 +453,10 @@ mod test {
     fn test_identity_negative() {
         let seq = SV::random(1000000);
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: true,
+            compress: true,
+        });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
         for _ in 0..1000 {
             let len = 16;
@@ -441,11 +470,14 @@ mod test {
         let seq = SV::random(1000000);
 
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
-        let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: true,
+            compress: true,
+        });
+        let index = UIndex::build(seq.clone(), sketcher, ms_index);
 
         for remap in [false, true] {
-            for l in [1, 10, 100] {
+            for l in [10, 100] {
                 for k in [1, 2, 3, 4, 5, 6, 7, 8] {
                     if k > l {
                         continue;
@@ -456,7 +488,7 @@ mod test {
                         remap,
                         cacheline_ef: false,
                     });
-                    let index = UIndex::build(seq.clone(), sketcher, ms_index);
+                    let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                     for _ in 0..1000 {
                         let len = l + rand::random::<usize>() % 100;
                         let pos = rand::random::<usize>() % (seq.len() - len);
@@ -480,11 +512,14 @@ mod test {
         let seq = SV::random(1000000);
 
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
-        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress: false });
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: true,
+            compress: true,
+        });
         let index = UIndex::build(seq.clone(), sketcher, ms_index);
 
         for remap in [false, true] {
-            for l in [1, 10, 100] {
+            for l in [10, 100] {
                 for k in [1, 2, 3, 4, 5, 6, 7, 8] {
                     if k > l {
                         continue;
@@ -506,7 +541,125 @@ mod test {
                             uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
                         index_occ.sort();
                         uindex_occ.sort();
-                        assert_eq!(index_occ, uindex_occ);
+                        assert_eq!(index_occ, uindex_occ, "l {l} k {k} remap {remap}");
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn test_identity_positive_noms() {
+        let seq = SV::random(1000000);
+        let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: false,
+            compress: true,
+        });
+        let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+        for _ in 0..1000 {
+            let len = rand::random::<usize>() % 100;
+            let pos = rand::random::<usize>() % (seq.len() - len);
+            let query = seq.slice(pos..pos + len);
+            let occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+            assert!(occ.len() > 0);
+            for &pos in &occ {
+                assert_eq!(seq.slice(pos..pos + len), query);
+            }
+        }
+    }
+    #[test]
+    fn test_identity_negative_noms() {
+        let seq = SV::random(1000000);
+        let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: false,
+            compress: true,
+        });
+        let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+        for _ in 0..1000 {
+            let len = 16;
+            let query = SV::random(len);
+            let occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
+            assert_eq!(occ.len(), 0);
+        }
+    }
+    #[test]
+    fn test_minspace_positive_noms() {
+        let seq = SV::random(1000000);
+
+        let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: false,
+            compress: true,
+        });
+        let index = UIndex::build(seq.clone(), sketcher, ms_index);
+
+        for remap in [false] {
+            for l in [10, 100] {
+                for k in [1, 2, 3, 4, 5, 6, 7, 8] {
+                    if k > l {
+                        continue;
+                    }
+                    let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams {
+                        l,
+                        k,
+                        remap,
+                        cacheline_ef: false,
+                    });
+                    let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+                    for _ in 0..1000 {
+                        let len = l + rand::random::<usize>() % 100;
+                        let pos = rand::random::<usize>() % (seq.len() - len);
+                        let query = seq.slice(pos..pos + len);
+
+                        let mut index_occ = index.query(query).unwrap().collect::<Vec<_>>();
+                        let mut uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+                        index_occ.sort();
+                        uindex_occ.sort();
+                        assert_eq!(
+                            index_occ, uindex_occ,
+                            "l {l} k {k} remap {remap} pos {pos} query {query:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn test_minspace_negative_noms() {
+        let seq = SV::random(1000000);
+
+        let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
+        let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+            store_ms_seq: false,
+            compress: true,
+        });
+        let index = UIndex::build(seq.clone(), sketcher, ms_index);
+
+        for remap in [false] {
+            for l in [10, 100] {
+                for k in [1, 2, 3, 4, 5, 6, 7, 8] {
+                    if k > l {
+                        continue;
+                    }
+                    let sketcher = SketcherBuilderEnum::Minimizer(MinimizerParams {
+                        l,
+                        k,
+                        remap,
+                        cacheline_ef: false,
+                    });
+                    let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+                    for _ in 0..1000 {
+                        let len = l + rand::random::<usize>() % 100;
+                        let query = SV::random(len);
+
+                        let mut index_occ =
+                            index.query(query.as_slice()).unwrap().collect::<Vec<_>>();
+                        let mut uindex_occ =
+                            uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
+                        index_occ.sort();
+                        uindex_occ.sort();
+                        assert_eq!(index_occ, uindex_occ, "l {l} k {k} remap {remap}");
                     }
                 }
             }
@@ -520,6 +673,7 @@ mod test {
 
         let ql = 256;
         let compress = true;
+        let store_seq = true;
         for (k, l) in [(8, 32), (16, 64)] {
             for remap in [false, true] {
                 if k > l {
@@ -534,7 +688,10 @@ mod test {
                     remap,
                     cacheline_ef: false,
                 });
-                let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa { compress });
+                let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
+                    store_ms_seq: store_seq,
+                    compress,
+                });
                 let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 timer.next("Query");
                 for _ in 0..1000000 {

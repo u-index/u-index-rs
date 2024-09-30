@@ -159,13 +159,13 @@ impl MinimizerSketcher {
         if self.params.remap {
             for val in min_vals {
                 let val = *self.kmer_map.get(val)?;
-                let buf = val.to_ne_bytes();
-                bytes.extend_from_slice(&buf[..self.kmer_width]);
+                let buf = val.to_be_bytes();
+                bytes.extend_from_slice(&buf[8 - self.kmer_width..]);
             }
         } else {
             for val in min_vals {
-                let buf = val.to_ne_bytes();
-                bytes.extend_from_slice(&buf[..self.kmer_width]);
+                let buf = val.to_be_bytes();
+                bytes.extend_from_slice(&buf[8 - self.kmer_width..]);
             }
         }
         Some(MsSequence(bytes))
@@ -175,6 +175,15 @@ impl MinimizerSketcher {
 impl<S: Seq> Sketcher<S> for MinimizerSketcher {
     fn width(&self) -> usize {
         self.kmer_width
+    }
+
+    fn k(&self) -> usize {
+        self.params.k
+    }
+
+    /// Return the number of minimizers.
+    fn len(&self) -> usize {
+        self.min_poss.len()
     }
 
     fn sketch(&self, seq: S) -> Result<(MsSequence, usize), SketchError> {
@@ -195,6 +204,22 @@ impl<S: Seq> Sketcher<S> for MinimizerSketcher {
             Some(self.min_poss_cacheline_ef.index(ms_pos / self.kmer_width) as usize)
         } else {
             Some(self.min_poss.get(ms_pos / self.kmer_width))
+        }
+    }
+
+    fn get_ms_minimizer(&self, ms_seq: &[u8], ms_pos: usize) -> Option<usize> {
+        let mut val = [0u8; 8];
+        val[8 - self.kmer_width..].copy_from_slice(&ms_seq[ms_pos..ms_pos + self.kmer_width]);
+        Some(usize::from_be_bytes(val))
+    }
+
+    fn get_ms_minimizer_via_plaintext(&self, seq: S, ms_pos: usize) -> Option<usize> {
+        let pos = self.ms_pos_to_plain_pos(ms_pos)?;
+        let kmer = packed_seq::Seq::to_word(&seq.slice(pos..pos + self.params.k)) as KmerVal;
+        if self.params.remap {
+            self.kmer_map.get(&kmer).copied()
+        } else {
+            Some(kmer as usize)
         }
     }
 }
