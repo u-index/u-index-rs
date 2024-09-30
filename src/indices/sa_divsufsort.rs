@@ -38,6 +38,15 @@ pub struct SuffixArray {
     sa: Vec<i32>,
 }
 
+impl SuffixArray {
+    pub fn seq_size(&self) -> usize {
+        self.ms_str.mem_size(SizeFlags::default())
+    }
+    pub fn sa_size(&self) -> usize {
+        self.sa.mem_size(SizeFlags::default())
+    }
+}
+
 impl Index for SuffixArray {
     fn query<'i>(&'i self, pattern: &[u8]) -> Box<dyn Iterator<Item = usize> + 'i> {
         let (pos, cnt) = sa_search(&self.ms_str, pattern, &self.sa);

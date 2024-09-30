@@ -125,6 +125,8 @@ pub struct UIndex {
 
 #[derive(MemSize, MemDbg, Default, Debug)]
 struct QueryStats {
+    /// The total number of queries.
+    queries: usize,
     /// Pattern is too short to sketch.
     too_short: usize,
     /// Pattern contained a minimizer that is not in the input text.
@@ -135,10 +137,10 @@ struct QueryStats {
     out_of_bounds: usize,
     /// Mismatch in sequence space.
     mismatches: usize,
-    /// Matches.
-    matches: usize,
     /// Bad ranges.
     bad_ranges: usize,
+    /// Matches.
+    matches: usize,
 
     /// Total time in ns of sketching queries.
     t_sketch: usize,
@@ -154,8 +156,44 @@ struct QueryStats {
 
 impl Drop for UIndex {
     fn drop(&mut self) {
-        let stats = self.query_stats.borrow();
-        tracing::info!("Query stats: {:#?}", *stats);
+        let QueryStats {
+            queries,
+            too_short,
+            unknown_minimizer,
+            misaligned_ms_pos,
+            out_of_bounds,
+            mismatches,
+            bad_ranges,
+            matches,
+            mut t_sketch,
+            mut t_search,
+            mut t_invert_pos,
+            mut t_check,
+            mut t_ranges,
+        } = self.query_stats.take();
+
+        t_sketch /= queries;
+        t_search /= queries;
+        t_invert_pos /= queries;
+        t_check /= queries;
+        t_ranges /= queries;
+
+        tracing::info!(
+            "QUERY STATS:
+queries           {queries:>9}
+too short         {too_short:>9}
+unknown minimizer {unknown_minimizer:>9}
+misaligned ms pos {misaligned_ms_pos:>9}
+out of bounds     {out_of_bounds:>9}
+mismatches        {mismatches:>9}
+bad_ranges        {bad_ranges:>9}
+matches           {matches:>9}
+t_sketch          {t_sketch:>9} ns/query
+t_search          {t_search:>9} ns/query
+t_invert_pos      {t_invert_pos:>9} ns/query
+t_check           {t_check:>9} ns/query
+t_ranges          {t_ranges:>9} ns/query"
+        );
     }
 }
 
@@ -197,20 +235,22 @@ impl UIndex {
             stats,
             ranges: ef_ranges.build_with_dict(),
         };
-        uindex.stats.add(
-            "seq_size_MB",
-            uindex.seq.mem_size(SizeFlags::default()) as f32 / 1000000.,
-        );
+        let seq_size = uindex.seq.mem_size(SizeFlags::default()) as f32 / 1000000.;
+        uindex.stats.add("seq_size_MB", seq_size);
+        trace!("seq    size:   {seq_size:>8.3} MB",);
         let sketch_size = uindex.sketcher.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("sketch_size_MB", sketch_size);
         trace!("Sketch size:   {sketch_size:>8.3} MB",);
-        let index_size = uindex.ms_index.mem_size(SizeFlags::default()) as f32 / 1000000.;
-        uindex.stats.add("index_size_MB", index_size);
-        trace!("Index  size:   {index_size:>8.3} MB",);
+        let ms_seq_size = uindex.ms_index.inner().seq_size() as f32 / 1000000.;
+        uindex.stats.add("ms_seq_size_MB", ms_seq_size);
+        trace!("ms-seq size:   {ms_seq_size:>8.3} MB",);
+        let sa_size = uindex.ms_index.inner().sa_size() as f32 / 1000000.;
+        uindex.stats.add("sa_size_MB", sa_size);
+        trace!("SA     size:   {sa_size:>8.3} MB",);
         let ranges_size = uindex.ranges.mem_size(SizeFlags::default()) as f32 / 1000000.;
-        uindex.stats.add("ranges_size_MB", index_size);
+        uindex.stats.add("ranges_size_MB", ranges_size);
         trace!("Ranges size:   {ranges_size:>8.3} MB",);
-        let total_size = sketch_size + index_size + ranges_size;
+        let total_size = sketch_size + ms_seq_size + sa_size + ranges_size;
         uindex.stats.add("total_size_MB", total_size);
         trace!("Total  size:   {total_size:>8.3} MB",);
         uindex
@@ -224,6 +264,7 @@ impl UIndex {
         stats.set("query_misaligned_ms_pos", qs.misaligned_ms_pos);
         stats.set("query_out_of_bounds", qs.out_of_bounds);
         stats.set("query_mismatches", qs.mismatches);
+        stats.set("query_bad_ranges", qs.bad_ranges);
         stats.set("query_matches", qs.matches);
         stats.set("t_query_sketch", qs.t_sketch as f32 / 1_000_000_000.);
         stats.set("t_query_search", qs.t_search as f32 / 1_000_000_000.);
@@ -245,6 +286,7 @@ impl UIndex {
         &'p self,
         pattern: <SV as SeqVec>::Seq<'p>,
     ) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
+        self.query_stats.borrow_mut().queries += 1;
         let t1 = std::time::Instant::now();
         let (ms_pattern, offset) = match self.sketcher.sketch(pattern) {
             Ok(x) => x,
@@ -331,9 +373,16 @@ pub fn read_human_genome() -> SV {
         panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
     };
     let mut seq = SV::default();
+    let mut cnt = 0;
     while let Some(r) = reader.next() {
         seq.push_ascii(&r.unwrap().seq());
+        cnt += 1;
     }
+    trace!(
+        "Read human genome: {cnt} chromosomes of total length {}Mbp and size {}MB",
+        seq.len() / 1000000,
+        seq.mem_size(SizeFlags::default()) / 1000000
+    );
     seq
 }
 
