@@ -6,8 +6,15 @@
 
 use super::*;
 use indices::DivSufSortSa;
+use packed_seq::PackedSeqVec;
 use pyo3::prelude::*;
 use sketchers::{IdentityParams, MinimizerParams};
+
+/// For python bindings, we always use the packed version.
+type SV = PackedSeqVec;
+
+#[pyclass]
+pub struct PyUIndex(UIndex<SV>);
 
 #[pyfunction]
 pub fn read() -> PyResult<SV> {
@@ -15,15 +22,15 @@ pub fn read() -> PyResult<SV> {
 }
 
 #[pyfunction]
-pub fn build_plain(seq: SV) -> PyResult<UIndex> {
-    Ok(UIndex::build(
+pub fn build_plain(seq: SV) -> PyResult<PyUIndex> {
+    Ok(PyUIndex(UIndex::build(
         seq,
         SketcherBuilderEnum::IdentityParams(IdentityParams),
         IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: false,
             compress: false,
         }),
-    ))
+    )))
 }
 
 #[pyfunction]
@@ -35,8 +42,8 @@ pub fn build_minimized(
     store_ms_seq: bool,
     compress: bool,
     cacheline_ef: bool,
-) -> PyResult<UIndex> {
-    Ok(UIndex::build(
+) -> PyResult<PyUIndex> {
+    Ok(PyUIndex(UIndex::build(
         seq,
         SketcherBuilderEnum::Minimizer(MinimizerParams {
             k,
@@ -48,22 +55,22 @@ pub fn build_minimized(
             store_ms_seq,
             compress,
         }),
-    ))
+    )))
 }
 
 #[pyfunction]
-pub fn gen_queries(uindex: &UIndex, len: usize, count: usize) -> PyResult<Vec<(usize, usize)>> {
-    Ok(uindex.gen_query_positions(len, count))
+pub fn gen_queries(uindex: &PyUIndex, len: usize, count: usize) -> PyResult<Vec<(usize, usize)>> {
+    Ok(uindex.0.gen_query_positions(len, count))
 }
 
 #[pyfunction]
-pub fn bench(uindex: &UIndex, queries: Vec<(usize, usize)>) -> PyResult<f64> {
-    Ok(uindex.bench_positive(&queries))
+pub fn bench(uindex: &PyUIndex, queries: Vec<(usize, usize)>) -> PyResult<f64> {
+    Ok(uindex.0.bench_positive(&queries))
 }
 
 #[pyfunction]
-pub fn stats(uindex: &UIndex) -> PyResult<HashMap<&'static str, f32>> {
-    Ok(uindex.stats())
+pub fn stats(uindex: &PyUIndex) -> PyResult<HashMap<&'static str, f32>> {
+    Ok(uindex.0.stats())
 }
 
 /// A Python module implemented in Rust. The name of this function must match

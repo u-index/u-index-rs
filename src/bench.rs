@@ -3,7 +3,7 @@ use std::hint::black_box;
 use super::*;
 use packed_seq::SeqVec;
 
-impl UIndex {
+impl<SV: SeqVec> UIndex<SV> {
     /// Take `count` random substrings with length `len` and time querying them.
     pub fn gen_query_positions(&self, len: usize, count: usize) -> Vec<(usize, usize)> {
         let n = self.seq.len();

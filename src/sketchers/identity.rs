@@ -1,7 +1,5 @@
 use packed_seq::SeqVec;
 
-use crate::PACKED;
-
 use super::*;
 
 /// 'Sketch' the sequence to itself.
@@ -17,12 +15,15 @@ pub struct Identity {
 impl SketcherBuilder for IdentityParams {
     type Sketcher = Identity;
 
-    fn sketch_with_stats<'s>(
+    fn sketch_with_stats<'s, S: Seq<'s>>(
         &self,
-        seq: impl Seq<'s>,
+        seq: S,
         _stats: &Stats,
     ) -> (Self::Sketcher, MsSequence) {
-        assert!(!PACKED);
+        assert!(
+            S::BASES_PER_BYTE == 1,
+            "Identity sketcher does not work for packed sequences."
+        );
         let seq = seq.to_vec().into_raw();
         (Identity { len: seq.len() }, MsSequence(seq))
     }

@@ -76,9 +76,9 @@ impl MinimizerParams {
 impl SketcherBuilder for MinimizerParams {
     type Sketcher = MinimizerSketcher;
 
-    fn sketch_with_stats<'s>(
+    fn sketch_with_stats<'s, S: Seq<'s>>(
         &self,
-        seq: impl Seq<'s>,
+        seq: S,
         stats: &Stats,
     ) -> (Self::Sketcher, MsSequence) {
         assert!(

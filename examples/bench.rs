@@ -1,3 +1,4 @@
+use packed_seq::PackedSeqVec;
 use uindex::{
     indices::{DivSufSortSa, IndexBuilderEnum},
     read_human_genome,
@@ -7,7 +8,7 @@ use uindex::{
 };
 
 fn main() {
-    let seq = read_human_genome();
+    let seq: PackedSeqVec = read_human_genome();
 
     let sketch_params = SketcherBuilderEnum::Minimizer(MinimizerParams {
         k: 16,

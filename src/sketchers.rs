@@ -26,9 +26,9 @@ pub enum SketcherEnum {
 impl SketcherBuilder for SketcherBuilderEnum {
     type Sketcher = SketcherEnum;
 
-    fn sketch_with_stats<'s>(
+    fn sketch_with_stats<'s, S: Seq<'s>>(
         &self,
-        seq: impl Seq<'s>,
+        seq: S,
         stats: &Stats,
     ) -> (Self::Sketcher, MsSequence) {
         match self {

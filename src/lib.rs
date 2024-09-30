@@ -49,12 +49,6 @@ mod py;
 /// A minimizer space sequence.
 pub struct MsSequence(Vec<u8>);
 
-// type SV = packed_seq::PackedSeqVec;
-// const PACKED: bool = true;
-
-type SV = packed_seq::AsciiSeqVec;
-const PACKED: bool = false;
-
 /// A generic index to locate strings.
 /// The index owns the input text.
 pub trait IndexBuilder {
@@ -86,9 +80,9 @@ pub trait SketcherBuilder {
     type Sketcher: Sketcher + 'static;
     /// Take an input text, find its minimizers, and compress to the target space.
     /// Additionally log statistics to `stats`.
-    fn sketch_with_stats<'s>(
+    fn sketch_with_stats<'s, S: Seq<'s>>(
         &self,
-        seq: impl Seq<'s>,
+        seq: S,
         stats: &Stats,
     ) -> (Self::Sketcher, MsSequence);
 
@@ -135,8 +129,7 @@ pub trait Sketcher: MemSize + MemDbg {
 }
 
 #[derive(MemSize, MemDbg)]
-#[pyclass]
-pub struct UIndex {
+pub struct UIndex<SV: SeqVec> {
     seq: SV,
     sketcher: SketcherEnum,
     ms_index: IndexEnum,
@@ -176,7 +169,7 @@ struct QueryStats {
     t_ranges: usize,
 }
 
-impl Drop for UIndex {
+impl<SV: SeqVec> Drop for UIndex<SV> {
     fn drop(&mut self) {
         let QueryStats {
             mut queries,
@@ -221,7 +214,7 @@ t_ranges          {t_ranges:>9} ns/query"
     }
 }
 
-impl UIndex {
+impl<SV: SeqVec> UIndex<SV> {
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
     pub fn build(
@@ -386,7 +379,7 @@ impl UIndex {
     }
 }
 
-pub fn read_chromosomes(cnt_max: usize) -> SV {
+pub fn read_chromosomes<SV: SeqVec>(cnt_max: usize) -> SV {
     *INIT_TRACE;
     let _timer = Timer::new("Reading");
     let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
@@ -409,14 +402,14 @@ pub fn read_chromosomes(cnt_max: usize) -> SV {
     seq
 }
 
-pub fn read_human_genome() -> SV {
+pub fn read_human_genome<SV: SeqVec>() -> SV {
     read_chromosomes(usize::MAX)
 }
 
 #[cfg(test)]
 mod test {
     use indices::DivSufSortSa;
-    use packed_seq::SeqVec;
+    use packed_seq::{AsciiSeqVec, PackedSeqVec, SeqVec};
     use sketchers::{IdentityParams, MinimizerParams};
     use tracing::trace;
 
@@ -424,21 +417,21 @@ mod test {
 
     #[test]
     fn test_identity_simple() {
-        let seq = SV::from_ascii(b"ACGTACGTACGTACGT");
+        let seq = AsciiSeqVec::from_ascii(b"ACGTACGTACGTACGT");
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: true,
             compress: true,
         });
         let uindex = UIndex::build(seq, sketcher, ms_index);
-        let query = SV::from_ascii(b"ACGT");
+        let query = AsciiSeqVec::from_ascii(b"ACGT");
         let mut occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
         occ.sort();
         assert_eq!(occ, vec![0, 4, 8, 12]);
     }
     #[test]
     fn test_identity_positive() {
-        let seq = SV::random(1000000);
+        let seq = AsciiSeqVec::random(1000000);
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: true,
@@ -458,7 +451,7 @@ mod test {
     }
     #[test]
     fn test_identity_negative() {
-        let seq = SV::random(1000000);
+        let seq = AsciiSeqVec::random(1000000);
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: true,
@@ -467,14 +460,14 @@ mod test {
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
         for _ in 0..100 {
             let len = 32;
-            let query = SV::random(len);
+            let query = AsciiSeqVec::random(len);
             let occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
             assert_eq!(occ.len(), 0);
         }
     }
     #[test]
     fn test_minspace_positive() {
-        let seq = SV::random(1000000);
+        let seq = PackedSeqVec::random(1000000);
 
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: true,
@@ -511,7 +504,7 @@ mod test {
     }
     #[test]
     fn test_minspace_negative() {
-        let seq = SV::random(1000000);
+        let seq = AsciiSeqVec::random(1000000);
 
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
@@ -535,7 +528,7 @@ mod test {
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                     for _ in 0..100 {
                         let len = l + rand::random::<usize>() % 100;
-                        let query = SV::random(len);
+                        let query = AsciiSeqVec::random(len);
 
                         let mut index_occ =
                             index.query(query.as_slice()).unwrap().collect::<Vec<_>>();
@@ -551,7 +544,7 @@ mod test {
     }
     #[test]
     fn test_identity_positive_noms() {
-        let seq = SV::random(1000000);
+        let seq = AsciiSeqVec::random(1000000);
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: false,
@@ -571,7 +564,7 @@ mod test {
     }
     #[test]
     fn test_identity_negative_noms() {
-        let seq = SV::random(1000000);
+        let seq = AsciiSeqVec::random(1000000);
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: false,
@@ -580,14 +573,14 @@ mod test {
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
         for _ in 0..100 {
             let len = 16;
-            let query = SV::random(len);
+            let query = AsciiSeqVec::random(len);
             let occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
             assert_eq!(occ.len(), 0);
         }
     }
     #[test]
     fn test_minspace_positive_noms() {
-        let seq = SV::random(1000000);
+        let seq = PackedSeqVec::random(1000000);
 
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: false,
@@ -624,7 +617,7 @@ mod test {
     }
     #[test]
     fn test_minspace_negative_noms() {
-        let seq = SV::random(1000000);
+        let seq = AsciiSeqVec::random(1000000);
 
         let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
@@ -648,7 +641,7 @@ mod test {
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                     for _ in 0..100 {
                         let len = l + rand::random::<usize>() % 100;
-                        let query = SV::random(len);
+                        let query = AsciiSeqVec::random(len);
 
                         let mut index_occ =
                             index.query(query.as_slice()).unwrap().collect::<Vec<_>>();
@@ -666,7 +659,7 @@ mod test {
     #[test]
     #[ignore = "needs human-genome.fa"]
     fn human_genome() {
-        let seq = read_chromosomes(1);
+        let seq: PackedSeqVec = read_chromosomes(1);
 
         let ql = 256;
         let compress = true;
