@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use cacheline_ef::CachelineEfVec;
 use itertools::Itertools;
 use mem_dbg::{MemDbg, MemSize};
+use minimizers::Captures;
 use packed_seq::Seq;
 use sux::traits::IndexedSeq;
 use tracing::trace;
 
 use crate::{
     utils::{Stats, Timer},
-    MsSequence, SketchError, Sketcher, SketcherBuilder,
+    MsSequence, SketchError, Sketcher, SketcherBuilder, S,
 };
 
 /// A packed minimizer representation.
@@ -37,7 +38,10 @@ impl MinimizerParams {
         self.l - self.k + 1
     }
 
-    fn minimizers<'s>(&'s self, seq: impl Seq + 's) -> impl Iterator<Item = (Pos, KmerVal)> + 's {
+    fn minimizers<'s>(
+        &'s self,
+        seq: impl Seq<'s>,
+    ) -> impl Iterator<Item = (Pos, KmerVal)> + Captures<&'s ()> {
         minimizers::simd::minimizer::minimizer_scalar_it::<false>(seq, self.k, self.w())
             .dedup()
             .map(move |pos| {
@@ -51,8 +55,8 @@ impl MinimizerParams {
 
     fn minimizers_par<'s>(
         &'s self,
-        seq: impl Seq + 's,
-    ) -> impl Iterator<Item = (Pos, KmerVal)> + 's {
+        seq: impl Seq<'s>,
+    ) -> impl Iterator<Item = (Pos, KmerVal)> + Captures<&'s ()> {
         minimizers::simd::minimizer::minimizer_simd_it::<false>(seq, self.k, self.w())
             .dedup()
             .map(move |pos| {
@@ -65,10 +69,10 @@ impl MinimizerParams {
     }
 }
 
-impl<S: Seq> SketcherBuilder<S> for MinimizerParams {
+impl SketcherBuilder for MinimizerParams {
     type Sketcher = MinimizerSketcher;
 
-    fn sketch_with_stats(&self, seq: S, stats: &Stats) -> (Self::Sketcher, MsSequence) {
+    fn sketch_with_stats(&self, seq: S<'_>, stats: &Stats) -> (Self::Sketcher, MsSequence) {
         assert!(
             self.k <= KmerVal::BITS as usize / 2,
             "k={} is too large to fit k bytes in a u64",
@@ -172,7 +176,7 @@ impl MinimizerSketcher {
     }
 }
 
-impl<S: Seq> Sketcher<S> for MinimizerSketcher {
+impl Sketcher for MinimizerSketcher {
     fn width(&self) -> usize {
         self.kmer_width
     }

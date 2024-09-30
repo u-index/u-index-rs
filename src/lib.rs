@@ -76,13 +76,13 @@ pub trait Index: MemSize + MemDbg {
         &'i self,
         pattern: &[u8],
         seq: S<'i>,
-        sketcher: &impl Sketcher<S<'i>>,
+        sketcher: &impl Sketcher,
     ) -> Box<dyn Iterator<Item = usize> + 'i>;
 }
 
 /// Sketch a plain sequence to minimizer space.
-pub trait SketcherBuilder<S: Seq> {
-    type Sketcher: Sketcher<S> + 'static;
+pub trait SketcherBuilder {
+    type Sketcher: Sketcher + 'static;
     /// Take an input text, find its minimizers, and compress to the target space.
     /// Additionally log statistics to `stats`.
     fn sketch_with_stats(&self, seq: S, stats: &Stats) -> (Self::Sketcher, MsSequence);
@@ -101,7 +101,7 @@ pub enum SketchError {
     UnknownMinimizer,
 }
 
-pub trait Sketcher<S: Seq>: MemSize + MemDbg {
+pub trait Sketcher: MemSize + MemDbg {
     /// Returns the width in bytes of each minimizer.
     fn width(&self) -> usize;
 
@@ -228,11 +228,7 @@ impl UIndex {
         let mut timer = Timer::new_stats("Sketch", &stats);
         let (sketcher, ms_seq) = sketch_params.sketch_with_stats(seq.as_slice(), &stats);
         timer.next("Build");
-        let ms_index = index_params.build_with_stats(
-            ms_seq.0,
-            Sketcher::<<SV as SeqVec>::Seq<'_>>::width(&sketcher),
-            &stats,
-        );
+        let ms_index = index_params.build_with_stats(ms_seq.0, Sketcher::width(&sketcher), &stats);
         drop(timer);
 
         // Build seq ranges.
@@ -333,12 +329,10 @@ impl UIndex {
             // The sketcher returns None when `ms_pos` does not align with a minimizer position.
             // The `checked_sub` fails when the minimizer is very close to the
             // start, and the `offset` doesn't fit before.
-            let plain_pos =
-                Sketcher::<<SV as SeqVec>::Seq<'_>>::ms_pos_to_plain_pos(&self.sketcher, ms_pos)
-                    .or_else(|| {
-                        self.query_stats.borrow_mut().misaligned_ms_pos += 1;
-                        None
-                    })?;
+            let plain_pos = self.sketcher.ms_pos_to_plain_pos(ms_pos).or_else(|| {
+                self.query_stats.borrow_mut().misaligned_ms_pos += 1;
+                None
+            })?;
             let t = std::time::Instant::now();
             self.query_stats.borrow_mut().t_invert_pos +=
                 t.duration_since(last).subsec_nanos() as usize;

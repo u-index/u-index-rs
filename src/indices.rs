@@ -44,7 +44,7 @@ impl Index for IndexEnum {
         &'i self,
         pattern: &[u8],
         seq: S<'i>,
-        sketcher: &impl Sketcher<S<'i>>,
+        sketcher: &impl Sketcher,
     ) -> Box<dyn Iterator<Item = usize> + 'i> {
         match self {
             IndexEnum::SuffixArray(index) => index.query(pattern, seq, sketcher),

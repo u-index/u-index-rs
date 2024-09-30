@@ -3,7 +3,7 @@ mod minimizers;
 use mem_dbg::{MemDbg, MemSize};
 pub use minimizers::MinimizerParams;
 use minimizers::MinimizerSketcher;
-use packed_seq::{AsciiSeq, PackedSeq, Seq};
+use packed_seq::{AsciiSeq, Seq};
 
 use crate::{utils::Stats, MsSequence, SketchError, Sketcher, SketcherBuilder, S};
 
@@ -17,7 +17,7 @@ pub struct Identity {
     len: usize,
 }
 
-impl SketcherBuilder<AsciiSeq<'_>> for IdentityParams {
+impl SketcherBuilder for IdentityParams {
     type Sketcher = Identity;
 
     fn sketch_with_stats(&self, seq: AsciiSeq, _stats: &Stats) -> (Self::Sketcher, MsSequence) {
@@ -26,7 +26,7 @@ impl SketcherBuilder<AsciiSeq<'_>> for IdentityParams {
     }
 }
 
-impl Sketcher<AsciiSeq<'_>> for Identity {
+impl Sketcher for Identity {
     fn width(&self) -> usize {
         1
     }
@@ -68,7 +68,7 @@ pub enum SketcherEnum {
     Minimizer(MinimizerSketcher),
 }
 
-impl SketcherBuilder<AsciiSeq<'_>> for SketcherBuilderEnum {
+impl SketcherBuilder for SketcherBuilderEnum {
     type Sketcher = SketcherEnum;
 
     fn sketch_with_stats(&self, seq: AsciiSeq, stats: &Stats) -> (Self::Sketcher, MsSequence) {
@@ -85,25 +85,25 @@ impl SketcherBuilder<AsciiSeq<'_>> for SketcherBuilderEnum {
     }
 }
 
-impl Sketcher<AsciiSeq<'_>> for SketcherEnum {
+impl Sketcher for SketcherEnum {
     fn width(&self) -> usize {
         match self {
             SketcherEnum::Identity(sketcher) => sketcher.width(),
-            SketcherEnum::Minimizer(sketcher) => Sketcher::<AsciiSeq>::width(sketcher),
+            SketcherEnum::Minimizer(sketcher) => sketcher.width(),
         }
     }
 
     fn k(&self) -> usize {
         match self {
             SketcherEnum::Identity(sketcher) => sketcher.k(),
-            SketcherEnum::Minimizer(sketcher) => Sketcher::<AsciiSeq>::k(sketcher),
+            SketcherEnum::Minimizer(sketcher) => sketcher.k(),
         }
     }
 
     fn len(&self) -> usize {
         match self {
             SketcherEnum::Identity(sketcher) => sketcher.len(),
-            SketcherEnum::Minimizer(sketcher) => Sketcher::<AsciiSeq>::len(sketcher),
+            SketcherEnum::Minimizer(sketcher) => sketcher.len(),
         }
     }
 
@@ -117,62 +117,7 @@ impl Sketcher<AsciiSeq<'_>> for SketcherEnum {
     fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize> {
         match self {
             SketcherEnum::Identity(sketcher) => sketcher.ms_pos_to_plain_pos(ms_pos),
-            SketcherEnum::Minimizer(sketcher) => {
-                Sketcher::<AsciiSeq>::ms_pos_to_plain_pos(sketcher, ms_pos)
-            }
-        }
-    }
-}
-
-impl SketcherBuilder<PackedSeq<'_>> for SketcherBuilderEnum {
-    type Sketcher = SketcherEnum;
-
-    fn sketch_with_stats(&self, seq: PackedSeq, stats: &Stats) -> (Self::Sketcher, MsSequence) {
-        match self {
-            SketcherBuilderEnum::Minimizer(params) => {
-                let (sketcher, ms_seq) = params.sketch_with_stats(seq, stats);
-                (SketcherEnum::Minimizer(sketcher), ms_seq)
-            }
-            _ => unimplemented!(),
-        }
-    }
-}
-
-impl Sketcher<PackedSeq<'_>> for SketcherEnum {
-    fn width(&self) -> usize {
-        match self {
-            SketcherEnum::Minimizer(sketcher) => Sketcher::<PackedSeq>::width(sketcher),
-            _ => unimplemented!(),
-        }
-    }
-
-    fn k(&self) -> usize {
-        match self {
-            SketcherEnum::Minimizer(sketcher) => Sketcher::<PackedSeq>::k(sketcher),
-            _ => unimplemented!(),
-        }
-    }
-
-    fn len(&self) -> usize {
-        match self {
-            SketcherEnum::Minimizer(sketcher) => Sketcher::<PackedSeq>::len(sketcher),
-            _ => unimplemented!(),
-        }
-    }
-
-    fn sketch(&self, seq: PackedSeq<'_>) -> Result<(MsSequence, usize), SketchError> {
-        match self {
-            SketcherEnum::Minimizer(sketcher) => sketcher.sketch(seq),
-            _ => unimplemented!(),
-        }
-    }
-
-    fn ms_pos_to_plain_pos(&self, ms_pos: usize) -> Option<usize> {
-        match self {
-            SketcherEnum::Minimizer(sketcher) => {
-                Sketcher::<PackedSeq>::ms_pos_to_plain_pos(sketcher, ms_pos)
-            }
-            _ => unimplemented!(),
+            SketcherEnum::Minimizer(sketcher) => sketcher.ms_pos_to_plain_pos(ms_pos),
         }
     }
 

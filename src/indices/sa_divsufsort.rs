@@ -60,7 +60,7 @@ impl SuffixArray {
         p: &[u8],
         i: usize,
         j: usize,
-        sketcher: &impl Sketcher<S<'i>>,
+        sketcher: &impl Sketcher,
     ) -> i32 {
         let cmp = if let Some(ms_seq) = &self.ms_seq {
             let w = sketcher.width();
@@ -82,7 +82,7 @@ impl SuffixArray {
 
     fn compare<'i>(
         &self,
-        sketcher: &impl Sketcher<S<'i>>,
+        sketcher: &impl Sketcher,
         seq: S<'i>,
         p: &[u8],
         suf: i32,
@@ -124,7 +124,7 @@ impl SuffixArray {
     // https://github.com/y-256/libdivsufsort/blob/5f60d6f026c30fb4ac296f696b3c8b0eb71bd428/lib/utils.c
     /// Search text `t` for pattern `p` given (sparse) suffix array `sa`.
     /// Returns a `(pos, cnt)` pair where `pos` is the index of the first match and `cnt` is the number of matches.
-    fn sa_search<'i>(&self, sketcher: &impl Sketcher<S<'i>>, seq: S<'i>, p: &[u8]) -> (i32, i32) {
+    fn sa_search<'i>(&self, sketcher: &impl Sketcher, seq: S<'i>, p: &[u8]) -> (i32, i32) {
         let mut size = self.sa.len() as i32;
         let mut half;
         let mut match_;
@@ -228,7 +228,7 @@ impl Index for SuffixArray {
         &'i self,
         pattern: &[u8],
         seq: S<'i>,
-        sketcher: &impl Sketcher<S<'i>>,
+        sketcher: &impl Sketcher,
     ) -> Box<dyn Iterator<Item = usize> + 'i> {
         let (pos, cnt) = self.sa_search(sketcher, seq, pattern);
         return Box::new((pos..pos + cnt).map(move |i| self.sa[i as usize] as usize));
