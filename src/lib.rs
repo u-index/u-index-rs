@@ -51,8 +51,11 @@ pub struct MsSequence(Vec<u8>);
 
 // type SV = packed_seq::PackedSeqVec;
 // type S<'s> = packed_seq::PackedSeq<'s>;
+// const PACKED: bool = true;
+
 type SV = packed_seq::AsciiSeqVec;
 type S<'s> = packed_seq::AsciiSeq<'s>;
+const PACKED: bool = false;
 
 /// A generic index to locate strings.
 /// The index owns the input text.
