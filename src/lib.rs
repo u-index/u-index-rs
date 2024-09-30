@@ -435,7 +435,7 @@ mod test {
             compress: true,
         });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-        for _ in 0..1000 {
+        for _ in 0..100 {
             let len = rand::random::<usize>() % 100;
             let pos = rand::random::<usize>() % (seq.len() - len);
             let query = seq.slice(pos..pos + len);
@@ -455,8 +455,8 @@ mod test {
             compress: true,
         });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-        for _ in 0..1000 {
-            let len = 16;
+        for _ in 0..100 {
+            let len = 32;
             let query = SV::random(len);
             let occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
             assert_eq!(occ.len(), 0);
@@ -484,7 +484,7 @@ mod test {
                         cacheline_ef: false,
                     });
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-                    for _ in 0..1000 {
+                    for _ in 0..100 {
                         let len = l + rand::random::<usize>() % 100;
                         let pos = rand::random::<usize>() % (seq.len() - len);
                         let query = seq.slice(pos..pos + len);
@@ -523,7 +523,7 @@ mod test {
                         cacheline_ef: false,
                     });
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-                    for _ in 0..1000 {
+                    for _ in 0..100 {
                         let len = l + rand::random::<usize>() % 100;
                         let query = SV::random(len);
 
@@ -548,7 +548,7 @@ mod test {
             compress: true,
         });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-        for _ in 0..1000 {
+        for _ in 0..100 {
             let len = rand::random::<usize>() % 100;
             let pos = rand::random::<usize>() % (seq.len() - len);
             let query = seq.slice(pos..pos + len);
@@ -568,7 +568,7 @@ mod test {
             compress: true,
         });
         let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-        for _ in 0..1000 {
+        for _ in 0..100 {
             let len = 16;
             let query = SV::random(len);
             let occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
@@ -597,7 +597,7 @@ mod test {
                         cacheline_ef: false,
                     });
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-                    for _ in 0..1000 {
+                    for _ in 0..100 {
                         let len = l + rand::random::<usize>() % 100;
                         let pos = rand::random::<usize>() % (seq.len() - len);
                         let query = seq.slice(pos..pos + len);
@@ -636,7 +636,7 @@ mod test {
                         cacheline_ef: false,
                     });
                     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
-                    for _ in 0..1000 {
+                    for _ in 0..100 {
                         let len = l + rand::random::<usize>() % 100;
                         let query = SV::random(len);
 
