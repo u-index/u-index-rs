@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
 use tracing::trace;
 
@@ -61,8 +63,8 @@ impl SuffixArray {
         i: usize,
         j: usize,
         sketcher: &impl Sketcher,
-    ) -> i32 {
-        let cmp = if let Some(ms_seq) = &self.ms_seq {
+    ) -> Ordering {
+        if let Some(ms_seq) = &self.ms_seq {
             let w = sketcher.width();
             let t = &ms_seq[w * i..w * (i + 1)];
             let p = &p[w * j..w * (j + 1)];
@@ -72,11 +74,6 @@ impl SuffixArray {
             let t = sketcher.get_ms_minimizer_via_plaintext(seq, w * i).unwrap();
             let p = sketcher.get_ms_minimizer(p, w * j).unwrap();
             t.cmp(&p)
-        };
-        match cmp {
-            std::cmp::Ordering::Less => -1,
-            std::cmp::Ordering::Equal => 0,
-            std::cmp::Ordering::Greater => 1,
         }
     }
 
@@ -87,13 +84,13 @@ impl SuffixArray {
         p: &[u8],
         suf: i32,
         match_: &mut i32,
-    ) -> i32 {
+    ) -> Ordering {
         let w = sketcher.width() as i32;
 
         debug_assert_eq!(suf % w, 0);
         let mut i = suf / w + *match_;
         let mut j = *match_;
-        let mut r = 0;
+        let mut r = Ordering::Equal;
 
         let ms_seq_len = sketcher.len() as i32;
         let pattern_len = (p.len() as i32) / w;
@@ -105,16 +102,16 @@ impl SuffixArray {
         while i < ms_seq_len as i32 && j < pattern_len {
             r = self.compare_minimizers(seq, p, i as usize, j as usize, sketcher);
             // r = t[i as usize] as i32 - p[j as usize] as i32;
-            if r != 0 {
+            if r != Ordering::Equal {
                 break;
             }
             i += 1;
             j += 1;
         }
         *match_ = j;
-        if r == 0 {
+        if r.is_eq() {
             if w * j != p.len() as i32 {
-                r = -1;
+                r = Ordering::Less;
             }
         }
         r
@@ -156,11 +153,11 @@ impl SuffixArray {
                 self.sa[i as usize + half as usize],
                 &mut match_,
             );
-            if r < 0 {
+            if r.is_lt() {
                 i += half + 1;
                 half -= (size & 1) ^ 1;
                 lmatch = match_;
-            } else if r > 0 {
+            } else if r.is_gt() {
                 rmatch = match_;
             } else {
                 let mut lsize = half;
@@ -181,7 +178,7 @@ impl SuffixArray {
                         self.sa[j as usize + half as usize],
                         &mut lmatch,
                     );
-                    if r < 0 {
+                    if r.is_lt() {
                         j += half + 1;
                         half -= (lsize & 1) ^ 1;
                         llmatch = lmatch;
@@ -204,7 +201,7 @@ impl SuffixArray {
                         self.sa[k as usize + half as usize],
                         &mut rmatch,
                     );
-                    if r <= 0 {
+                    if r.is_le() {
                         k += half + 1;
                         half -= (rsize & 1) ^ 1;
                         rlmatch = rmatch;
