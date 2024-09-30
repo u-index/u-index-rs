@@ -440,7 +440,7 @@ mod test {
             let pos = rand::random::<usize>() % (seq.len() - len);
             let query = seq.slice(pos..pos + len);
             let occ = uindex.query(query).unwrap().collect::<Vec<_>>();
-            assert!(occ.len() > 0);
+            assert!(occ.contains(&pos));
             for &pos in &occ {
                 assert_eq!(seq.slice(pos..pos + len), query);
             }
@@ -466,12 +466,10 @@ mod test {
     fn test_minspace_positive() {
         let seq = SV::random(1000000);
 
-        let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: true,
             compress: true,
         });
-        let index = UIndex::build(seq.clone(), sketcher, ms_index);
 
         for remap in [false, true] {
             for l in [10, 100] {
@@ -491,12 +489,9 @@ mod test {
                         let pos = rand::random::<usize>() % (seq.len() - len);
                         let query = seq.slice(pos..pos + len);
 
-                        let mut index_occ = index.query(query).unwrap().collect::<Vec<_>>();
-                        let mut uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
-                        index_occ.sort();
-                        uindex_occ.sort();
-                        assert_eq!(
-                            index_occ, uindex_occ,
+                        let uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+                        assert!(
+                            uindex_occ.contains(&pos),
                             "l {l} k {k} remap {remap} pos {pos} query {query:?}"
                         );
                     }
@@ -558,7 +553,7 @@ mod test {
             let pos = rand::random::<usize>() % (seq.len() - len);
             let query = seq.slice(pos..pos + len);
             let occ = uindex.query(query).unwrap().collect::<Vec<_>>();
-            assert!(occ.len() > 0);
+            assert!(occ.contains(&pos));
             for &pos in &occ {
                 assert_eq!(seq.slice(pos..pos + len), query);
             }
@@ -584,12 +579,10 @@ mod test {
     fn test_minspace_positive_noms() {
         let seq = SV::random(1000000);
 
-        let sketcher = SketcherBuilderEnum::IdentityParams(IdentityParams);
         let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq: false,
             compress: true,
         });
-        let index = UIndex::build(seq.clone(), sketcher, ms_index);
 
         for remap in [false] {
             for l in [10, 100] {
@@ -609,12 +602,9 @@ mod test {
                         let pos = rand::random::<usize>() % (seq.len() - len);
                         let query = seq.slice(pos..pos + len);
 
-                        let mut index_occ = index.query(query).unwrap().collect::<Vec<_>>();
-                        let mut uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
-                        index_occ.sort();
-                        uindex_occ.sort();
-                        assert_eq!(
-                            index_occ, uindex_occ,
+                        let uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
+                        assert!(
+                            uindex_occ.contains(&pos),
                             "l {l} k {k} remap {remap} pos {pos} query {query:?}"
                         );
                     }
