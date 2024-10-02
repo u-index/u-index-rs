@@ -2,11 +2,12 @@
 //! - faster-minuter
 //! - quad-wavelet-tree
 mod sa_divsufsort;
+mod suffix_array;
 
 use mem_dbg::{MemDbg, MemSize};
 use packed_seq::Seq;
 pub use sa_divsufsort::DivSufSortSa;
-use sa_divsufsort::SuffixArray;
+use suffix_array::SuffixArray;
 
 use crate::{utils::Stats, Index, IndexBuilder, Sketcher};
 
