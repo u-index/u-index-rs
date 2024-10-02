@@ -87,6 +87,10 @@ impl SketcherBuilder for MinimizerParams {
             self.k
         );
         trace!("Sequence length {}", seq.len());
+        trace!("k: {}", self.k);
+        trace!("l: {}", self.l);
+        trace!("remap: {}", self.remap);
+        trace!("cacheline_ef: {}", self.cacheline_ef);
         stats.set("sequence_length", seq.len());
         let mut timer = Timer::new_stats("computing_minimizers", stats);
         let (min_poss, min_val): (Vec<Pos>, Vec<KmerVal>) = self.minimizers_par(seq).unzip();

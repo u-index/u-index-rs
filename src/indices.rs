@@ -2,11 +2,13 @@
 //! - faster-minuter
 //! - quad-wavelet-tree
 mod sa_divsufsort;
+mod sa_libsais;
 mod suffix_array;
 
 use mem_dbg::{MemDbg, MemSize};
 use packed_seq::Seq;
 pub use sa_divsufsort::DivSufSortSa;
+pub use sa_libsais::LibSaisSa;
 use suffix_array::SuffixArray;
 
 use crate::{utils::Stats, Index, IndexBuilder, Sketcher};
@@ -14,6 +16,7 @@ use crate::{utils::Stats, Index, IndexBuilder, Sketcher};
 #[derive(Clone, Copy)]
 pub enum IndexBuilderEnum {
     DivSufSortSa(DivSufSortSa),
+    LibSaisSa(LibSaisSa),
 }
 
 #[derive(MemSize, MemDbg)]
@@ -35,6 +38,9 @@ impl IndexBuilder for IndexBuilderEnum {
     fn build_with_stats(&self, text: Vec<u8>, width: usize, stats: &Stats) -> Self::Index {
         match self {
             IndexBuilderEnum::DivSufSortSa(builder) => {
+                IndexEnum::SuffixArray(builder.build_with_stats(text, width, stats))
+            }
+            IndexBuilderEnum::LibSaisSa(builder) => {
                 IndexEnum::SuffixArray(builder.build_with_stats(text, width, stats))
             }
         }
