@@ -2,8 +2,9 @@ use std::cmp::Ordering;
 
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
 use packed_seq::Seq;
+use tracing::trace;
 
-use crate::{Index, Sketcher};
+use crate::{utils::Stats, Index, Sketcher};
 
 /// A 32-bit suffix array that owns the corresponding text.
 /// Uses `libdivsufsort` for searching.
@@ -19,6 +20,15 @@ impl SuffixArray {
     }
     pub fn sa_size(&self) -> usize {
         self.sa.mem_size(SizeFlags::default())
+    }
+
+    pub fn log_sizes(&self, stats: &Stats) {
+        let ms_seq_size = self.seq_size() as f32 / 1000000.;
+        stats.add("ms_seq_size_MB", ms_seq_size);
+        trace!("ms-seq size:   {ms_seq_size:>8.3} MB",);
+        let sa_size = self.sa_size() as f32 / 1000000.;
+        stats.add("sa_size_MB", sa_size);
+        trace!("SA     size:   {sa_size:>8.3} MB",);
     }
 
     #[inline(always)]

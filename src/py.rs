@@ -5,7 +5,7 @@
 //! 4. Get stats.
 
 use super::*;
-use indices::DivSufSortSa;
+use indices::{DivSufSortSa, FmBioParams};
 use packed_seq::PackedSeqVec;
 use pyo3::prelude::*;
 use sketchers::{IdentityParams, MinimizerParams};
@@ -59,6 +59,43 @@ pub fn build_minimized(
 }
 
 #[pyfunction]
+pub fn build_plain_fm(seq: SV, occ_sampling: u32, sa_sampling: usize) -> PyResult<PyUIndex> {
+    Ok(PyUIndex(UIndex::build(
+        seq,
+        SketcherBuilderEnum::IdentityParams(IdentityParams),
+        IndexBuilderEnum::FmIndex(FmBioParams {
+            occ_sampling,
+            sa_sampling,
+        }),
+    )))
+}
+
+#[pyfunction]
+pub fn build_minimized_fm(
+    seq: SV,
+    k: usize,
+    l: usize,
+    remap: bool,
+    cacheline_ef: bool,
+    occ_sampling: u32,
+    sa_sampling: usize,
+) -> PyResult<PyUIndex> {
+    Ok(PyUIndex(UIndex::build(
+        seq,
+        SketcherBuilderEnum::Minimizer(MinimizerParams {
+            k,
+            l,
+            remap,
+            cacheline_ef,
+        }),
+        IndexBuilderEnum::FmIndex(FmBioParams {
+            occ_sampling,
+            sa_sampling,
+        }),
+    )))
+}
+
+#[pyfunction]
 pub fn gen_queries(uindex: &PyUIndex, len: usize, count: usize) -> PyResult<Vec<(usize, usize)>> {
     Ok(uindex.0.gen_query_positions(len, count))
 }
@@ -81,6 +118,8 @@ fn uindex(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read, m)?)?;
     m.add_function(wrap_pyfunction!(build_plain, m)?)?;
     m.add_function(wrap_pyfunction!(build_minimized, m)?)?;
+    m.add_function(wrap_pyfunction!(build_plain_fm, m)?)?;
+    m.add_function(wrap_pyfunction!(build_minimized_fm, m)?)?;
     m.add_function(wrap_pyfunction!(gen_queries, m)?)?;
     m.add_function(wrap_pyfunction!(self::bench, m)?)?;
     m.add_function(wrap_pyfunction!(stats, m)?)?;

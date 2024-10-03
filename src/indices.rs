@@ -1,10 +1,12 @@
 //! TODO: FM-index:
 //! - faster-minuter
 //! - quad-wavelet-tree
+mod fm_bio;
 mod sa_divsufsort;
 mod sa_libsais;
 mod suffix_array;
 
+pub use fm_bio::FmBioParams;
 use mem_dbg::{MemDbg, MemSize};
 use packed_seq::Seq;
 pub use sa_divsufsort::DivSufSortSa;
@@ -17,17 +19,20 @@ use crate::{utils::Stats, Index, IndexBuilder, Sketcher};
 pub enum IndexBuilderEnum {
     DivSufSortSa(DivSufSortSa),
     LibSaisSa(LibSaisSa),
+    FmIndex(fm_bio::FmBioParams),
 }
 
-#[derive(MemSize, MemDbg)]
+#[derive(MemSize)]
 pub enum IndexEnum {
     SuffixArray(SuffixArray),
+    FmIndex(fm_bio::FmBio),
 }
 
 impl IndexEnum {
-    pub fn inner(&self) -> &SuffixArray {
+    pub fn log_sizes(&self, stats: &Stats) {
         match self {
-            IndexEnum::SuffixArray(index) => &index,
+            IndexEnum::SuffixArray(index) => index.log_sizes(stats),
+            IndexEnum::FmIndex(index) => index.log_sizes(stats),
         }
     }
 }
@@ -43,6 +48,9 @@ impl IndexBuilder for IndexBuilderEnum {
             IndexBuilderEnum::LibSaisSa(builder) => {
                 IndexEnum::SuffixArray(builder.build_with_stats(text, width, stats))
             }
+            IndexBuilderEnum::FmIndex(builder) => {
+                IndexEnum::FmIndex(builder.build_with_stats(text, width, stats))
+            }
         }
     }
 }
@@ -56,6 +64,7 @@ impl Index for IndexEnum {
     ) -> Box<dyn Iterator<Item = usize> + 's> {
         match self {
             IndexEnum::SuffixArray(index) => index.query(pattern, seq, sketcher),
+            IndexEnum::FmIndex(index) => index.query(pattern, seq, sketcher),
         }
     }
 }

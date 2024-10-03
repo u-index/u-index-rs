@@ -65,7 +65,8 @@ pub trait IndexBuilder {
     }
 }
 
-pub trait Index: MemSize + MemDbg {
+// FIXME: Re-add MemDbg super trait.
+pub trait Index: MemSize {
     /// Return all places where the pattern occurs.
     fn query<'s>(
         &'s self,
@@ -128,7 +129,7 @@ pub trait Sketcher: MemSize + MemDbg {
         -> Option<usize>;
 }
 
-#[derive(MemSize, MemDbg)]
+#[derive(MemSize)]
 pub struct UIndex<SV: SeqVec> {
     seq: SV,
     sketcher: SketcherEnum,
@@ -251,19 +252,22 @@ impl<SV: SeqVec> UIndex<SV> {
         let seq_size = uindex.seq.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("seq_size_MB", seq_size);
         trace!("seq    size:   {seq_size:>8.3} MB",);
+
         let sketch_size = uindex.sketcher.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("sketch_size_MB", sketch_size);
         trace!("Sketch size:   {sketch_size:>8.3} MB",);
-        let ms_seq_size = uindex.ms_index.inner().seq_size() as f32 / 1000000.;
-        uindex.stats.add("ms_seq_size_MB", ms_seq_size);
-        trace!("ms-seq size:   {ms_seq_size:>8.3} MB",);
-        let sa_size = uindex.ms_index.inner().sa_size() as f32 / 1000000.;
-        uindex.stats.add("sa_size_MB", sa_size);
-        trace!("SA     size:   {sa_size:>8.3} MB",);
+
+        uindex.ms_index.log_sizes(&uindex.stats);
+
+        let index_size = uindex.ms_index.mem_size(SizeFlags::default()) as f32 / 1000000.;
+        uindex.stats.add("index_size_MB", index_size);
+        trace!("Index size:   {index_size:>8.3} MB",);
+
         let ranges_size = uindex.ranges.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("ranges_size_MB", ranges_size);
         trace!("Ranges size:   {ranges_size:>8.3} MB",);
-        let total_size = sketch_size + ms_seq_size + sa_size + ranges_size;
+
+        let total_size = sketch_size + index_size + ranges_size;
         uindex.stats.add("total_size_MB", total_size);
         trace!("Total  size:   {total_size:>8.3} MB",);
         uindex
