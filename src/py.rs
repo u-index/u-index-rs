@@ -18,7 +18,7 @@ pub struct PyUIndex(UIndex<SV>);
 
 #[pyfunction]
 pub fn read() -> PyResult<SV> {
-    Ok(super::read_human_genome())
+    Ok(utils::read_human_genome())
 }
 
 #[pyfunction]

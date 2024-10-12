@@ -2,6 +2,7 @@ use indices::DivSufSortSa;
 use packed_seq::{AsciiSeqVec, PackedSeqVec, SeqVec};
 use sketchers::{IdentityParams, MinimizerParams};
 use tracing::trace;
+use utils::{read_chromosomes, Timer};
 
 use super::*;
 

@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 
 use indices::IndexBuilderEnum;
-use mem_dbg::SizeFlags;
-use packed_seq::SeqVec;
 use pyo3::pyclass;
 use sketchers::SketcherBuilderEnum;
-use tracing::trace;
-use utils::{Timer, INIT_TRACE};
 
 pub mod indices;
 pub mod sketchers;
@@ -55,30 +51,3 @@ mod test;
 
 /// A minimizer space sequence.
 pub struct MsSequence(Vec<u8>);
-
-pub fn read_chromosomes<SV: SeqVec>(cnt_max: usize) -> SV {
-    *INIT_TRACE;
-    let _timer = Timer::new("Reading");
-    let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
-        panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
-    };
-    let mut seq = SV::default();
-    let mut cnt = 0;
-    while let Some(r) = reader.next() {
-        seq.push_ascii(&r.unwrap().seq());
-        cnt += 1;
-        if cnt == cnt_max {
-            break;
-        }
-    }
-    trace!(
-        "Read human genome: {cnt} chromosomes of total length {}Mbp and size {}MB",
-        seq.len() / 1000000,
-        seq.mem_size(SizeFlags::default()) / 1000000
-    );
-    seq
-}
-
-pub fn read_human_genome<SV: SeqVec>() -> SV {
-    read_chromosomes(usize::MAX)
-}

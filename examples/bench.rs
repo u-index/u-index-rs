@@ -1,9 +1,8 @@
 use packed_seq::PackedSeqVec;
 use uindex::{
     indices::{DivSufSortSa, FmBioParams, IndexBuilderEnum, LibSaisSa},
-    read_chromosomes, read_human_genome,
     sketchers::{MinimizerParams, SketcherBuilderEnum},
-    utils::Timer,
+    utils::{read_chromosomes, Timer},
     UIndex,
 };
 
