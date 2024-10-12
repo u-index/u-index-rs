@@ -5,6 +5,7 @@ use pyo3::pyclass;
 use sketchers::SketcherBuilderEnum;
 
 pub mod indices;
+pub mod s_index;
 pub mod sketchers;
 pub mod traits;
 mod u_index;
