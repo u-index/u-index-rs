@@ -1,7 +1,7 @@
 use mem_dbg::{MemDbg, MemSize};
 use packed_seq::*;
 
-use crate::utils::Stats;
+use crate::{utils::Stats, MsSequence};
 
 /// A generic index to locate strings.
 /// The index owns the input text.
@@ -11,10 +11,10 @@ pub trait IndexBuilder {
     /// Build an index on the text, and keep track of statistics.
     /// `width` gives the width of each minimizer in bytes.
     /// Effectively, only a suffix array on the `width` byte wide integers is needed.
-    fn build_with_stats(&self, text: &mut Vec<u8>, width: usize, stats: &Stats) -> Self::Index;
+    fn build_with_stats(&self, text: Vec<u8>, width: usize, stats: &Stats) -> Self::Index;
 
     /// Build an index on the text.
-    fn build(&self, text: &mut Vec<u8>, width: usize) -> Self::Index {
+    fn build(&self, text: Vec<u8>, width: usize) -> Self::Index {
         self.build_with_stats(text, width, &Stats::default())
     }
 }
@@ -35,10 +35,14 @@ pub trait SketcherBuilder {
     type Sketcher: Sketcher + 'static;
     /// Take an input text, find its minimizers, and compress to the target space.
     /// Additionally log statistics to `stats`.
-    fn sketch_with_stats<'s, S: Seq<'s>>(&self, seq: S, stats: &Stats) -> Self::Sketcher;
+    fn sketch_with_stats<'s, S: Seq<'s>>(
+        &self,
+        seq: S,
+        stats: &Stats,
+    ) -> (Self::Sketcher, MsSequence);
 
     /// Take an input text, find its minimizers, and compress to the target space.
-    fn sketch<'s>(&self, seq: impl Seq<'s>) -> Self::Sketcher {
+    fn sketch<'s>(&self, seq: impl Seq<'s>) -> (Self::Sketcher, MsSequence) {
         self.sketch_with_stats(seq, &Stats::default())
     }
 }
@@ -52,8 +56,6 @@ pub enum SketchError {
 }
 
 pub trait Sketcher: MemSize + MemDbg {
-    type PatternSketch;
-
     /// Returns the width in bytes of each minimizer.
     fn width(&self) -> usize;
 
@@ -61,15 +63,13 @@ pub trait Sketcher: MemSize + MemDbg {
 
     fn len(&self) -> usize;
 
-    fn sketch_size(&self) -> usize;
-
     /// Take an input text, compute its minimizers, and compress those into the
     /// target `u8` alphabet. This could be done a few ways, e.g.:
     /// - concatenating the KmerVals,
     /// - using a hash function to map the KmerVals to a smaller range.
     /// Also returns the position in `seq` of the first minimizer.
     /// Returns `None` when `seq` is too short to contain a minimizer.
-    fn sketch<'s>(&self, seq: impl Seq<'s>) -> Result<(Self::PatternSketch, usize), SketchError>;
+    fn sketch<'s>(&self, seq: impl Seq<'s>) -> Result<(MsSequence, usize), SketchError>;
 
     /// Take a *byte* position of a character in the minimizer space, and return its start position in the original sequence.
     /// Returns `None` when the position in the minimizer space text is not aligned with the size of the encoded minimizers.
@@ -81,17 +81,4 @@ pub trait Sketcher: MemSize + MemDbg {
     /// Return the value of the minimizer at the given position in the sketched sequence.
     fn get_ms_minimizer_via_plaintext<'s>(&self, seq: impl Seq<'s>, ms_pos: usize)
         -> Option<usize>;
-
-    /// Compare a sketched pattern to the (sketched) text.
-    fn compare<'i>(
-        &self,
-        // The input text.
-        seq: impl Seq<'i>,
-        // A sketched pattern.
-        pattern: &Self::PatternSketch,
-        // The index in the sketched sequence corresponding to the start of the pattern.
-        i: usize,
-        // The number of already matched characters/minimizers.
-        match_: &mut i32,
-    ) -> std::cmp::Ordering;
 }
