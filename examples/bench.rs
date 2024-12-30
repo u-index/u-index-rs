@@ -1,5 +1,6 @@
-use packed_seq::PackedSeqVec;
+use packed_seq::{PackedSeqVec, SeqVec};
 use uindex::{
+    bench::gen_query_positions,
     indices::{DivSufSortSa, FmBioParams, IndexBuilderEnum, LibSaisSa},
     sketchers::{MinimizerParams, SketcherBuilderEnum},
     utils::{read_chromosomes, Timer},
@@ -27,7 +28,7 @@ fn main() {
 
         let u = UIndex::build(seq.clone(), sketch_params, index_params);
 
-        queries = u.gen_query_positions(256, 1000000);
+        queries = gen_query_positions(seq.as_slice(), 256, 1000000);
 
         let _t = Timer::new("bench_positive");
         u.bench_positive(&queries);

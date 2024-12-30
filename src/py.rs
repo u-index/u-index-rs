@@ -96,8 +96,8 @@ pub fn build_minimized_fm(
 }
 
 #[pyfunction]
-pub fn gen_queries(uindex: &PyUIndex, len: usize, count: usize) -> PyResult<Vec<(usize, usize)>> {
-    Ok(uindex.0.gen_query_positions(len, count))
+pub fn gen_queries(seq: SV, len: usize, count: usize) -> PyResult<Vec<(usize, usize)>> {
+    Ok(gen_query_positions(seq.as_slice(), len, count))
 }
 
 #[pyfunction]

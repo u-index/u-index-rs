@@ -8,7 +8,7 @@ mod sa_libsais;
 mod suffix_array;
 
 pub use fm_bio::FmBioParams;
-use mem_dbg::{MemDbg, MemSize};
+use mem_dbg::MemSize;
 use packed_seq::Seq;
 pub use sa_divsufsort::DivSufSortSa;
 pub use sa_libsais::LibSaisSa;

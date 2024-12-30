@@ -3,7 +3,7 @@ py:
 
 py-init:
     python3 -m venv .env
-    ln -sfn ../.env/lib/python3.12/site-packages/uindex py/uindex
+    ln -sfn ../.env/lib/python3.13/site-packages/uindex py/uindex
     ln -sfn ../human-genome.fa py/human-genome.fa
 
 perf:

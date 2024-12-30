@@ -4,17 +4,17 @@ use indices::IndexBuilderEnum;
 use pyo3::pyclass;
 use sketchers::SketcherBuilderEnum;
 
+pub mod bench;
 pub mod indices;
 pub mod s_index;
 pub mod sketchers;
 pub mod traits;
-mod u_index;
+pub mod u_index;
 pub mod utils;
 
 pub use traits::*;
 pub use u_index::*;
 
-mod bench;
 #[cfg(feature = "python-bindings")]
 mod py;
 
