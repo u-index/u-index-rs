@@ -1,16 +1,10 @@
 //! This file is a crime; mostly copied from `u_index.rs` and `suffix_array.rs`.
-//! But this uses slightly different types and modifying all the trais was pain.
+//! But this uses slightly different types and modifying all the traits was pain.
 
 use std::{cell::RefCell, collections::HashMap};
 
-use crate::{
-    indices::IndexBuilderEnum,
-    sketchers::{MinimizerParams, SketcherBuilderEnum},
-    traits::*,
-    utils::*,
-    QueryStats,
-};
-use crate::{utils::Stats, Sketcher};
+use crate::utils::Stats;
+use crate::{utils::*, QueryStats};
 use itertools::Itertools;
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
 use packed_seq::Seq;
@@ -88,6 +82,9 @@ impl<SV: SeqVec> SIndex<SV> {
                 .dedup()
                 .collect::<Vec<_>>();
         timer.next("Build");
+        eprintln!("Num minimizers: {}", minimizer_positions.len());
+        eprintln!("Last minimizer: {:?}", minimizer_positions.last());
+        eprintln!("Seq len: {}", seq.len());
         // TODO
         let ssa = SparseSuffixArray::new(seq.as_slice(), minimizer_positions);
         drop(timer);
@@ -166,6 +163,7 @@ impl<SV: SeqVec> SIndex<SV> {
         // TODO: Find position of first minimizer of pattern.
 
         if pattern.len() < self.l {
+            eprintln!("Pattern has length {} < l = {}", pattern.len(), self.l);
             self.query_stats.borrow_mut().too_short += 1;
             return None;
         }
@@ -174,6 +172,7 @@ impl<SV: SeqVec> SIndex<SV> {
             pattern.slice(0..self.l),
             self.k,
         );
+        assert!(offset < self.l);
 
         let t2 = std::time::Instant::now();
         self.query_stats.borrow_mut().t_sketch += t2.duration_since(t1).subsec_nanos() as usize;
@@ -195,7 +194,13 @@ impl<SV: SeqVec> SIndex<SV> {
             // The `get` fails when the minimizer match is too close to the end
             // and the pattern doesn't fit after it.
             let end = start + pattern.len();
-            assert!(end <= self.seq.len(), "Pattern extends beyond the text");
+            if end > self.seq.len() {
+                eprintln!("end = {} > seq.len() = {}", end, self.seq.len());
+                // FIXME: This should never happen, but it does.
+                self.query_stats.borrow_mut().out_of_bounds += 1;
+                return None;
+            }
+            // assert!(end <= self.seq.len(), "Pattern extends beyond the text");
 
             let matches = self.seq.slice(start..start + offset) == pattern.slice(0..offset);
             let t = std::time::Instant::now();
@@ -233,9 +238,9 @@ pub struct SparseSuffixArray {
 }
 
 impl SparseSuffixArray {
-    pub fn new<'i>(text: impl Seq<'i>, mut indices: Vec<u32>) -> Self {
-        let n = text.len();
-        indices.sort_unstable_by_key(|idx| text.slice(*idx as usize..n));
+    pub fn new<'i>(seq: impl Seq<'i>, mut indices: Vec<u32>) -> Self {
+        let n = seq.len();
+        indices.sort_unstable_by_key(|idx| seq.slice(*idx as usize..n));
         Self { sa: indices }
     }
 
@@ -264,7 +269,11 @@ impl SparseSuffixArray {
         let pat = p.slice(*match_..p.len());
         let (r, lcp) = seq.cmp_lcp(&pat);
         *match_ += lcp;
-        r
+        if *match_ == p.len() {
+            Ordering::Equal
+        } else {
+            r
+        }
     }
 
     // Transcribed from
@@ -364,7 +373,11 @@ impl SparseSuffixArray {
         (pos, cnt)
     }
 
-    fn query<'s, S: Seq<'s>>(&'s self, seq: S, pattern: S) -> impl Iterator<Item = usize> + 's {
+    fn query<'s, S: Seq<'s>>(
+        &'s self,
+        seq: S,
+        pattern: S,
+    ) -> impl Iterator<Item = usize> + 's + Clone {
         let (pos, cnt) = self.sa_search(seq, pattern);
         (pos..pos + cnt).map(move |i| self.sa[i as usize] as usize)
     }

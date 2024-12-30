@@ -1,5 +1,6 @@
 use indices::DivSufSortSa;
 use packed_seq::{AsciiSeqVec, PackedSeqVec, SeqVec};
+use s_index::SIndex;
 use sketchers::{IdentityParams, MinimizerParams};
 use tracing::trace;
 use utils::{read_chromosomes, Timer};
@@ -240,6 +241,32 @@ fn test_minspace_negative_noms() {
                     uindex_occ.sort();
                     assert_eq!(index_occ, uindex_occ, "l {l} k {k} remap {remap}");
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_s_index() {
+    let seq = PackedSeqVec::random(1000000);
+
+    for l in [1, 10, 100] {
+        for k in [1, 2, 3, 4, 5, 6, 7, 8] {
+            if k > l {
+                continue;
+            }
+            let sindex = SIndex::build(seq.clone(), k, l);
+            for it in 0..100 {
+                let len = l + rand::random::<usize>() % 100;
+                let pos = rand::random::<usize>() % (seq.len() - len);
+                let query = seq.slice(pos..pos + len);
+
+                let uindex_occ = sindex.query(query).unwrap().collect::<Vec<_>>();
+                assert!(
+                    uindex_occ.contains(&pos),
+                    "l {l} k {k} it {it} pos {pos} occurrences {}\n{uindex_occ:?}\n query {query:?}",
+                    uindex_occ.len()
+                );
             }
         }
     }
