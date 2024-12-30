@@ -121,9 +121,10 @@ impl SketcherBuilder for MinimizerParams {
         trace!("kmer_width: {kmer_width} bytes");
         stats.set("kmer_width", kmer_width);
         timer.next("Building EF");
-        let min_poss_ef = if self.cacheline_ef {
-            let min_poss_ef = sux::dict::elias_fano::EliasFanoBuilder::new(0, 0);
-            min_poss_ef.build_with_seq()
+        let min_poss = if self.cacheline_ef {
+            MinimizerPositions::CachelineEf(CachelineEfVec::new(
+                &min_poss.into_iter().map(|x| x as u64).collect_vec(),
+            ))
         } else {
             let mut min_poss_ef = sux::dict::elias_fano::EliasFanoBuilder::new(
                 min_poss.len(),
@@ -132,17 +133,11 @@ impl SketcherBuilder for MinimizerParams {
             for &p in &min_poss {
                 min_poss_ef.push(p);
             }
-            min_poss_ef.build_with_seq()
-        };
-        let min_poss_cacheline_ef = if self.cacheline_ef {
-            CachelineEfVec::new(&min_poss.into_iter().map(|x| x as u64).collect_vec())
-        } else {
-            CachelineEfVec::new(&vec![])
+            MinimizerPositions::EliasFano(min_poss_ef.build_with_seq())
         };
         let sketcher = MinimizerSketcher {
             params: self.clone(),
-            min_poss: min_poss_ef,
-            min_poss_cacheline_ef,
+            min_poss,
             kmer_map,
             kmer_width,
         };
@@ -155,12 +150,16 @@ impl SketcherBuilder for MinimizerParams {
 }
 
 #[derive(MemSize, MemDbg)]
+enum MinimizerPositions {
+    EliasFano(sux::dict::elias_fano::EfSeq),
+    CachelineEf(cacheline_ef::CachelineEfVec),
+}
+
+#[derive(MemSize, MemDbg)]
 pub struct MinimizerSketcher {
     params: MinimizerParams,
     /// Positions in the plain sequence of all minimizers.
-    min_poss: sux::dict::elias_fano::EfSeq,
-    /// Positions in the plain sequence of all minimizers.
-    min_poss_cacheline_ef: cacheline_ef::CachelineEfVec,
+    min_poss: MinimizerPositions,
     /// When `remap` is true, a map from kmers to smaller IDs.
     kmer_map: HashMap<KmerVal, usize>,
     /// The width in bytes of the kmer IDs used.
@@ -199,7 +198,10 @@ impl Sketcher for MinimizerSketcher {
 
     /// Return the number of minimizers.
     fn len(&self) -> usize {
-        self.min_poss.len()
+        match &self.min_poss {
+            MinimizerPositions::EliasFano(elias_fano) => elias_fano.len(),
+            MinimizerPositions::CachelineEf(cacheline_ef_vec) => cacheline_ef_vec.len(),
+        }
     }
 
     fn sketch<'s>(&self, seq: impl Seq<'s>) -> Result<(MsSequence, usize), SketchError> {
@@ -216,10 +218,13 @@ impl Sketcher for MinimizerSketcher {
         if ms_pos % self.kmer_width != 0 {
             return None;
         }
-        if self.params.cacheline_ef {
-            Some(self.min_poss_cacheline_ef.index(ms_pos / self.kmer_width) as usize)
-        } else {
-            Some(self.min_poss.get(ms_pos / self.kmer_width))
+        match &self.min_poss {
+            MinimizerPositions::EliasFano(elias_fano) => {
+                Some(elias_fano.get(ms_pos / self.kmer_width))
+            }
+            MinimizerPositions::CachelineEf(cacheline_ef_vec) => {
+                Some(cacheline_ef_vec.index(ms_pos / self.kmer_width) as usize)
+            }
         }
     }
 
