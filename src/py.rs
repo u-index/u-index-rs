@@ -7,7 +7,7 @@
 use crate::bench::gen_query_positions;
 
 use super::*;
-use indices::{DivSufSortSa, FmBioParams};
+use indices::{DivSufSortSa, FmAwryParams, FmBioParams};
 use packed_seq::{PackedSeqVec, SeqVec};
 use pyo3::prelude::*;
 use s_index::SIndex;
@@ -70,14 +70,11 @@ pub fn build_minimized(
 }
 
 #[pyfunction]
-pub fn build_plain_fm(seq: SV, occ_sampling: u32, sa_sampling: usize) -> PyResult<PyUIndex> {
+pub fn build_plain_fm(seq: SV, sa_sampling: usize) -> PyResult<PyUIndex> {
     Ok(PyUIndex(UIndex::build(
         seq,
         SketcherBuilderEnum::IdentityParams(IdentityParams),
-        IndexBuilderEnum::FmIndex(FmBioParams {
-            occ_sampling,
-            sa_sampling,
-        }),
+        IndexBuilderEnum::FmAwry(FmAwryParams { sa_sampling }),
     )))
 }
 
@@ -88,7 +85,6 @@ pub fn build_minimized_fm(
     l: usize,
     remap: bool,
     cacheline_ef: bool,
-    occ_sampling: u32,
     sa_sampling: usize,
 ) -> PyResult<PyUIndex> {
     Ok(PyUIndex(UIndex::build(
@@ -99,10 +95,7 @@ pub fn build_minimized_fm(
             remap,
             cacheline_ef,
         }),
-        IndexBuilderEnum::FmIndex(FmBioParams {
-            occ_sampling,
-            sa_sampling,
-        }),
+        IndexBuilderEnum::FmAwry(FmAwryParams { sa_sampling }),
     )))
 }
 

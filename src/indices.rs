@@ -7,6 +7,7 @@ mod sa_divsufsort;
 mod sa_libsais;
 mod suffix_array;
 
+pub use fm_awry::FmAwryParams;
 pub use fm_bio::FmBioParams;
 use mem_dbg::MemSize;
 use packed_seq::Seq;
@@ -20,14 +21,14 @@ use crate::{utils::Stats, Index, IndexBuilder, Sketcher};
 pub enum IndexBuilderEnum {
     DivSufSortSa(DivSufSortSa),
     LibSaisSa(LibSaisSa),
-    FmIndex(fm_bio::FmBioParams),
+    FmBio(fm_bio::FmBioParams),
     FmAwry(fm_awry::FmAwryParams),
 }
 
 #[derive(MemSize)]
 pub enum IndexEnum {
     SuffixArray(SuffixArray),
-    FmIndex(fm_bio::FmBio),
+    FmBio(fm_bio::FmBio),
     FmAwry(fm_awry::FmAwry),
 }
 
@@ -35,7 +36,7 @@ impl IndexEnum {
     pub fn log_sizes(&self, stats: &Stats) {
         match self {
             IndexEnum::SuffixArray(index) => index.log_sizes(stats),
-            IndexEnum::FmIndex(index) => index.log_sizes(stats),
+            IndexEnum::FmBio(index) => index.log_sizes(stats),
             IndexEnum::FmAwry(_index) => {}
         }
     }
@@ -52,8 +53,8 @@ impl IndexBuilder for IndexBuilderEnum {
             IndexBuilderEnum::LibSaisSa(builder) => {
                 IndexEnum::SuffixArray(builder.build_with_stats(text, width, stats))
             }
-            IndexBuilderEnum::FmIndex(builder) => {
-                IndexEnum::FmIndex(builder.build_with_stats(text, width, stats))
+            IndexBuilderEnum::FmBio(builder) => {
+                IndexEnum::FmBio(builder.build_with_stats(text, width, stats))
             }
             IndexBuilderEnum::FmAwry(builder) => {
                 IndexEnum::FmAwry(builder.build_with_stats(text, width, stats))
@@ -71,7 +72,7 @@ impl Index for IndexEnum {
     ) -> Box<dyn Iterator<Item = usize> + 's> {
         match self {
             IndexEnum::SuffixArray(index) => index.query(pattern, seq, sketcher),
-            IndexEnum::FmIndex(index) => index.query(pattern, seq, sketcher),
+            IndexEnum::FmBio(index) => index.query(pattern, seq, sketcher),
             IndexEnum::FmAwry(index) => index.query(pattern, seq, sketcher),
         }
     }
