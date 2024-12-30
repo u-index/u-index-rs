@@ -1,6 +1,7 @@
 //! TODO: FM-index:
 //! - faster-minuter
 //! - quad-wavelet-tree
+mod fm_awry;
 mod fm_bio;
 mod sa_divsufsort;
 mod sa_libsais;
@@ -20,12 +21,14 @@ pub enum IndexBuilderEnum {
     DivSufSortSa(DivSufSortSa),
     LibSaisSa(LibSaisSa),
     FmIndex(fm_bio::FmBioParams),
+    FmAwry(fm_awry::FmAwryParams),
 }
 
 #[derive(MemSize)]
 pub enum IndexEnum {
     SuffixArray(SuffixArray),
     FmIndex(fm_bio::FmBio),
+    FmAwry(fm_awry::FmAwry),
 }
 
 impl IndexEnum {
@@ -33,6 +36,7 @@ impl IndexEnum {
         match self {
             IndexEnum::SuffixArray(index) => index.log_sizes(stats),
             IndexEnum::FmIndex(index) => index.log_sizes(stats),
+            IndexEnum::FmAwry(_index) => {}
         }
     }
 }
@@ -51,6 +55,9 @@ impl IndexBuilder for IndexBuilderEnum {
             IndexBuilderEnum::FmIndex(builder) => {
                 IndexEnum::FmIndex(builder.build_with_stats(text, width, stats))
             }
+            IndexBuilderEnum::FmAwry(builder) => {
+                IndexEnum::FmAwry(builder.build_with_stats(text, width, stats))
+            }
         }
     }
 }
@@ -65,6 +72,7 @@ impl Index for IndexEnum {
         match self {
             IndexEnum::SuffixArray(index) => index.query(pattern, seq, sketcher),
             IndexEnum::FmIndex(index) => index.query(pattern, seq, sketcher),
+            IndexEnum::FmAwry(index) => index.query(pattern, seq, sketcher),
         }
     }
 }
