@@ -37,8 +37,8 @@ fn main() {
     // Fm Bio
     if true {
         let index_params = IndexBuilderEnum::FmBio(FmBioParams {
-            occ_sampling: 128,
-            sa_sampling: 128,
+            occ_sampling: 64,
+            sa_sampling: 64,
         });
 
         let u = UIndex::build(seq.clone(), sketch_params, index_params);
@@ -51,7 +51,7 @@ fn main() {
 
     // Fm Awry
     if true {
-        let index_params = IndexBuilderEnum::FmAwry(FmAwryParams { sa_sampling: 128 });
+        let index_params = IndexBuilderEnum::FmAwry(FmAwryParams { sa_sampling: 64 });
 
         let u = UIndex::build(seq.clone(), sketch_params, index_params);
 
