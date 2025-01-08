@@ -21,7 +21,8 @@ num-traits = "0.2.19"
 sux = "0.4.4"
 tracing = { version = "0.1.40", features = ["log"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-bio = { version = "2.0.3", path = "../forks/rust-bio" }
+bio = "2.0.3"
+# bio = { version = "2.0.3", path = "../forks/rust-bio" }
 awry = "0.1.3"
 
 # Optional for python bindings

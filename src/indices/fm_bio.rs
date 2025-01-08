@@ -7,7 +7,7 @@ use bio::data_structures::suffix_array::{suffix_array, SampledSuffixArray, Suffi
 use itertools::Itertools;
 use mem_dbg::MemSize;
 use packed_seq::PackedSeq;
-use tracing::trace;
+use tracing::{trace, warn};
 
 use crate::utils::{Stats, Timer};
 use crate::{Index, IndexBuilder};
@@ -28,8 +28,12 @@ impl MemSize for FmBio {
         // let fm_size = self.fm.mem_size(flags);
         let bwt_size = self.sampled_sa.bwt().mem_size(flags);
         let less_size = self.sampled_sa.less().mem_size(flags);
-        let occ_size = self.sampled_sa.occ().mem_size(flags);
-        let sampled_sa_size = self.sampled_sa.mem_size(flags);
+        warn!("OCC size not implemented");
+        warn!("Sampled SA size not implemented");
+        let occ_size = 0;
+        let sampled_sa_size = 0;
+        // let occ_size = self.sampled_sa.occ().mem_size(flags);
+        // let sampled_sa_size = self.sampled_sa.mem_size(flags);
         bwt_size + less_size + occ_size + sampled_sa_size
     }
 }
@@ -45,13 +49,15 @@ impl FmBio {
         stats.add("less_size_MB", less_size);
         trace!("less size:  {less_size:>8.3} MB",);
 
-        let occ_size = self.sampled_sa.occ().mem_size(Default::default()) as f32 / 1000000.;
-        stats.add("occ_size_MB", occ_size);
-        trace!("occ size:   {occ_size:>8.3} MB",);
+        warn!("OCC size not implemented");
+        warn!("Sampled SA size not implemented");
+        // let occ_size = self.sampled_sa.occ().mem_size(Default::default()) as f32 / 1000000.;
+        // stats.add("occ_size_MB", occ_size);
+        // trace!("occ size:   {occ_size:>8.3} MB",);
 
-        let ssa_size = self.sampled_sa.mem_size(Default::default()) as f32 / 1000000.;
-        stats.add("ssa_size_MB", ssa_size);
-        trace!("ssa size:   {ssa_size:>8.3} MB",);
+        // let ssa_size = self.sampled_sa.mem_size(Default::default()) as f32 / 1000000.;
+        // stats.add("ssa_size_MB", ssa_size);
+        // trace!("ssa size:   {ssa_size:>8.3} MB",);
     }
 }
 
