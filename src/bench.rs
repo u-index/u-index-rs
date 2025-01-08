@@ -3,6 +3,7 @@ use std::hint::black_box;
 use super::*;
 use packed_seq::{Seq, SeqVec};
 use s_index::SIndex;
+use tracing::trace;
 
 /// Take `count` random substrings with length `len` and time querying them.
 pub fn gen_query_positions<'i>(seq: impl Seq<'i>, len: usize, count: usize) -> Vec<(usize, usize)> {
@@ -20,8 +21,13 @@ impl<SV: SeqVec> UIndex<SV> {
         let start = std::time::Instant::now();
 
         let mut num_matches = 0;
+        let mut i = 0usize;
         for &(s, e) in queries {
             num_matches += self.query(self.seq.slice(s..e)).unwrap().count();
+            i += 1;
+            if i.is_power_of_two() {
+                trace!("Processed {i} queries with {num_matches} matches");
+            }
         }
         black_box(num_matches);
 
@@ -37,8 +43,14 @@ impl<SV: SeqVec> SIndex<SV> {
         let start = std::time::Instant::now();
 
         let mut num_matches = 0;
+
+        let mut i = 0usize;
         for &(s, e) in queries {
             num_matches += self.query(self.seq.slice(s..e)).unwrap().count();
+            i += 1;
+            if i.is_power_of_two() {
+                trace!("Processed {i} queries with {num_matches} matches");
+            }
         }
         black_box(num_matches);
 
