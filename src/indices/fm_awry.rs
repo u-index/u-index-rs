@@ -3,6 +3,8 @@ use std::path::Path;
 use awry::alphabet::SymbolAlphabet;
 use awry::fm_index::{FmBuildArgs, FmIndex};
 use mem_dbg::MemSize;
+use packed_seq::{PackedSeq, Seq};
+use tracing::{info, trace};
 
 use crate::{Index, IndexBuilder};
 
@@ -25,8 +27,6 @@ impl MemSize for FmAwry {
     }
 }
 
-impl FmAwry {}
-
 impl IndexBuilder for FmAwryParams {
     type Index = FmAwry;
 
@@ -36,12 +36,26 @@ impl IndexBuilder for FmAwryParams {
         _width: usize,
         _stats: &crate::utils::Stats,
     ) -> Self::Index {
-        let path = Path::new("/tmp/input.fa");
+        // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
+        let unpacked = PackedSeq {
+            seq: &text,
+            offset: 0,
+            len: 4 * text.len(),
+        }
+        .unpack();
+
+        info!("Build AWRY on length {}", unpacked.len());
+
+        let mut fasta = b">seq\n".to_vec();
+        fasta.extend(unpacked);
+        fasta.push(b'\n');
+
+        let path = "/tmp/input.fa";
         // Write text to input file.
-        std::fs::write(path, text).unwrap();
+        std::fs::write(path, fasta).unwrap();
 
         let build_args = FmBuildArgs {
-            input_file_src: "test.fasta".to_owned(),
+            input_file_src: path.to_string(),
             suffix_array_output_src: None,
             suffix_array_compression_ratio: Some(self.sa_sampling.try_into().unwrap()),
             lookup_table_kmer_len: None,
@@ -63,9 +77,24 @@ impl Index for FmAwry {
         _seq: impl packed_seq::Seq<'s>,
         _sketcher: &impl crate::Sketcher,
     ) -> Box<dyn Iterator<Item = usize> + 's> {
-        // convert bytes to String
-        let pattern = unsafe { String::from_utf8_unchecked(pattern.to_vec()) };
-        let positions = self.fm.locate_string(&pattern);
-        Box::new(positions.into_iter().map(|x| x.local_position()))
+        // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
+        let unpacked = unsafe {
+            String::from_utf8_unchecked(
+                PackedSeq {
+                    seq: &pattern,
+                    offset: 0,
+                    len: 4 * pattern.len(),
+                }
+                .unpack(),
+            )
+        };
+
+        let positions = self.fm.locate_string(&unpacked);
+        Box::new(
+            positions
+                .into_iter()
+                .map(|x| x.local_position())
+                .filter_map(|x| if x % 4 == 0 { Some(x / 4) } else { None }),
+        )
     }
 }
