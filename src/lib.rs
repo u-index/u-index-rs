@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-
-use pyo3::pyclass;
-
 pub mod bench;
 pub mod indices;
 pub mod s_index;
@@ -13,8 +9,8 @@ pub mod utils;
 pub use traits::*;
 pub use u_index::*;
 
-#[cfg(feature = "python-bindings")]
-mod py;
+// #[cfg(feature = "python-bindings")]
+// mod py;
 
 #[cfg(test)]
 mod test;
