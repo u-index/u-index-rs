@@ -98,8 +98,8 @@ impl UIndex {
     /// 2. Build minimizer space index.
     pub fn build(
         mut seq: PackedSeqVec,
-        sketch_params: Box<dyn SketcherBuilder>,
-        index_params: Box<dyn IndexBuilder>,
+        sketch_params: &dyn SketcherBuilder,
+        index_params: &dyn IndexBuilder,
     ) -> Self {
         *INIT_TRACE;
         let stats = Stats::default();

@@ -10,11 +10,11 @@ use super::*;
 #[test]
 fn test_identity_simple() {
     let seq = PackedSeqVec::from_ascii(b"ACGTACGTACGTACGT");
-    let sketcher = Box::new(IdentityParams);
-    let ms_index = Box::new(DivSufSortSa {
+    let sketcher = &IdentityParams;
+    let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
-    });
+    };
     let uindex = UIndex::build(seq, sketcher, ms_index);
     let query = PackedSeqVec::from_ascii(b"ACGT");
     let mut occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
@@ -24,11 +24,11 @@ fn test_identity_simple() {
 #[test]
 fn test_identity_positive() {
     let seq = PackedSeqVec::random(1000000);
-    let sketcher = Box::new(IdentityParams);
-    let ms_index = Box::new(DivSufSortSa {
+    let sketcher = &IdentityParams;
+    let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
-    });
+    };
     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
     for _ in 0..100 {
         let len = rand::random::<usize>() % 100;
@@ -44,11 +44,11 @@ fn test_identity_positive() {
 #[test]
 fn test_identity_negative() {
     let seq = PackedSeqVec::random(1000000);
-    let sketcher = Box::new(IdentityParams);
-    let ms_index = Box::new(DivSufSortSa {
+    let sketcher = &IdentityParams;
+    let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
-    });
+    };
     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
     for _ in 0..100 {
         let len = 32;
@@ -61,10 +61,10 @@ fn test_identity_negative() {
 fn test_minspace_positive() {
     let seq = PackedSeqVec::random(1000000);
 
-    let ms_index = Box::new(DivSufSortSa {
+    let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
-    });
+    };
 
     for remap in [false, true] {
         for l in [10, 100] {
@@ -72,14 +72,14 @@ fn test_minspace_positive() {
                 if k > l {
                     continue;
                 }
-                let sketcher = Box::new(MinimizerParams {
+                let sketcher = &MinimizerParams {
                     l,
                     k,
                     remap,
                     cacheline_ef: false,
                     skip_zero: false,
-                });
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index.clone());
+                };
+                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 for _ in 0..100 {
                     let len = l + rand::random::<usize>() % 100;
                     let pos = rand::random::<usize>() % (seq.len() - len);
@@ -99,12 +99,12 @@ fn test_minspace_positive() {
 fn test_minspace_negative() {
     let seq = PackedSeqVec::random(1000000);
 
-    let sketcher = Box::new(IdentityParams);
-    let ms_index = Box::new(DivSufSortSa {
+    let sketcher = &IdentityParams;
+    let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
-    });
-    let index = UIndex::build(seq.clone(), sketcher, ms_index.clone());
+    };
+    let index = UIndex::build(seq.clone(), sketcher, ms_index);
 
     for remap in [false, true] {
         for l in [10, 100] {
@@ -112,14 +112,14 @@ fn test_minspace_negative() {
                 if k > l {
                     continue;
                 }
-                let sketcher = Box::new(MinimizerParams {
+                let sketcher = &MinimizerParams {
                     l,
                     k,
                     remap,
                     cacheline_ef: false,
                     skip_zero: false,
-                });
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index.clone());
+                };
+                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 for _ in 0..100 {
                     let len = l + rand::random::<usize>() % 100;
                     let query = PackedSeqVec::random(len);
@@ -138,11 +138,11 @@ fn test_minspace_negative() {
 #[test]
 fn test_identity_positive_noms() {
     let seq = PackedSeqVec::random(1000000);
-    let sketcher = Box::new(IdentityParams);
-    let ms_index = Box::new(DivSufSortSa {
+    let sketcher = &IdentityParams;
+    let ms_index = &DivSufSortSa {
         store_ms_seq: false,
         compress: true,
-    });
+    };
     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
     for _ in 0..100 {
         let len = rand::random::<usize>() % 100;
@@ -158,11 +158,11 @@ fn test_identity_positive_noms() {
 #[test]
 fn test_identity_negative_noms() {
     let seq = PackedSeqVec::random(1000000);
-    let sketcher = Box::new(IdentityParams);
-    let ms_index = Box::new(DivSufSortSa {
+    let sketcher = &IdentityParams;
+    let ms_index = &DivSufSortSa {
         store_ms_seq: false,
         compress: true,
-    });
+    };
     let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
     for _ in 0..100 {
         let len = 16;
@@ -175,10 +175,10 @@ fn test_identity_negative_noms() {
 fn test_minspace_positive_noms() {
     let seq = PackedSeqVec::random(1000000);
 
-    let ms_index = Box::new(DivSufSortSa {
+    let ms_index = &DivSufSortSa {
         store_ms_seq: false,
         compress: true,
-    });
+    };
 
     for remap in [false] {
         for l in [10, 100] {
@@ -186,14 +186,14 @@ fn test_minspace_positive_noms() {
                 if k > l {
                     continue;
                 }
-                let sketcher = Box::new(MinimizerParams {
+                let sketcher = &MinimizerParams {
                     l,
                     k,
                     remap,
                     cacheline_ef: false,
                     skip_zero: false,
-                });
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index.clone());
+                };
+                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 for _ in 0..100 {
                     let len = l + rand::random::<usize>() % 100;
                     let pos = rand::random::<usize>() % (seq.len() - len);
@@ -213,12 +213,12 @@ fn test_minspace_positive_noms() {
 fn test_minspace_negative_noms() {
     let seq = PackedSeqVec::random(1000000);
 
-    let sketcher = Box::new(IdentityParams);
-    let ms_index = Box::new(DivSufSortSa {
+    let sketcher = &IdentityParams;
+    let ms_index = &DivSufSortSa {
         store_ms_seq: false,
         compress: true,
-    });
-    let index = UIndex::build(seq.clone(), sketcher, ms_index.clone());
+    };
+    let index = UIndex::build(seq.clone(), sketcher, ms_index);
 
     for remap in [false] {
         for l in [10, 100] {
@@ -226,14 +226,14 @@ fn test_minspace_negative_noms() {
                 if k > l {
                     continue;
                 }
-                let sketcher = Box::new(MinimizerParams {
+                let sketcher = &MinimizerParams {
                     l,
                     k,
                     remap,
                     cacheline_ef: false,
                     skip_zero: false,
-                });
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index.clone());
+                };
+                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 for _ in 0..100 {
                     let len = l + rand::random::<usize>() % 100;
                     let query = PackedSeqVec::random(len);
@@ -288,17 +288,17 @@ fn human_genome() {
             for store_seq in [false, true] {
                 let mut timer = Timer::new("Build");
                 trace!("remap {remap} l {l} k {k}");
-                let sketcher = Box::new(MinimizerParams {
+                let sketcher = &MinimizerParams {
                     l,
                     k,
                     remap,
                     cacheline_ef: false,
                     skip_zero: false,
-                });
-                let ms_index = Box::new(DivSufSortSa {
+                };
+                let ms_index = &DivSufSortSa {
                     store_ms_seq: store_seq,
                     compress,
-                });
+                };
                 let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 timer.next("Query");
                 for _ in 0..100000 {
