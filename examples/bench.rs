@@ -13,7 +13,7 @@ fn main() {
 
     let seq: PackedSeqVec = read_chromosomes(1);
 
-    let no_sketch_params = IdentityParams;
+    // let no_sketch_params = IdentityParams;
 
     let sketch_params = MinimizerParams {
         k: 28,
@@ -49,9 +49,9 @@ fn main() {
         // }),
     ];
     for p in index_params {
-        let u = UIndex::build(seq.clone(), &no_sketch_params, &*p);
-        let _t = Timer::new("bench_positive");
-        u.bench_positive(&queries);
+        // let u = UIndex::build(seq.clone(), &no_sketch_params, &*p);
+        // let _t = Timer::new("bench_positive");
+        // u.bench_positive(&queries);
 
         let u = UIndex::build(seq.clone(), &sketch_params, &*p);
         let _t = Timer::new("bench_positive");
