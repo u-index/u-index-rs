@@ -16,6 +16,7 @@ libsais-rs = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/
 mem_dbg = "0.2.4"
 minimizers = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/minimizers", default-features = false}
 packed-seq = { version = "0.1.0", git = "https://github.com/rust-seq/packed-seq" }
+sdsl-lite-fm = { version = "0.1.0", path = "../sdsl-lite-fm" }
 num-traits = "0.2.19"
 sux = "0.4.4"
 tracing = { version = "0.1.40", features = ["log"] }
