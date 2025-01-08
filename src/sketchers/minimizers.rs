@@ -31,6 +31,8 @@ pub struct MinimizerParams {
     pub remap: bool,
     /// Which implementation to use for the minimizer positions.
     pub cacheline_ef: bool,
+    /// When true, remapping skips 0.
+    pub skip_zero: bool,
 }
 
 impl MinimizerParams {
@@ -99,7 +101,8 @@ impl SketcherBuilder for MinimizerParams {
         let (kmer_map, kmer_width) = if self.remap {
             timer.next("Building remap");
             let mut kmer_map = HashMap::new();
-            let mut id = 0usize;
+            // Start at 1 to avoid 0 bytes.
+            let mut id = if self.skip_zero { 1usize } else { 0usize };
             for &kmer in &min_val {
                 if !kmer_map.contains_key(&kmer) {
                     kmer_map.insert(kmer, id);

@@ -77,6 +77,7 @@ fn test_minspace_positive() {
                     k,
                     remap,
                     cacheline_ef: false,
+                    skip_zero: false,
                 });
                 let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 for _ in 0..100 {
@@ -116,6 +117,7 @@ fn test_minspace_negative() {
                     k,
                     remap,
                     cacheline_ef: false,
+                    skip_zero: false,
                 });
                 let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 for _ in 0..100 {
@@ -189,6 +191,7 @@ fn test_minspace_positive_noms() {
                     k,
                     remap,
                     cacheline_ef: false,
+                    skip_zero: false,
                 });
                 let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 for _ in 0..100 {
@@ -228,6 +231,7 @@ fn test_minspace_negative_noms() {
                     k,
                     remap,
                     cacheline_ef: false,
+                    skip_zero: false,
                 });
                 let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
                 for _ in 0..100 {
@@ -289,6 +293,7 @@ fn human_genome() {
                     k,
                     remap,
                     cacheline_ef: false,
+                    skip_zero: false,
                 });
                 let ms_index = IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
                     store_ms_seq: store_seq,

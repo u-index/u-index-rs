@@ -61,6 +61,7 @@ pub fn build_minimized(
             l,
             remap,
             cacheline_ef,
+            skip_zero: false,
         }),
         IndexBuilderEnum::DivSufSortSa(DivSufSortSa {
             store_ms_seq,
@@ -94,6 +95,7 @@ pub fn build_minimized_fm(
             l,
             remap,
             cacheline_ef,
+            skip_zero: false,
         }),
         IndexBuilderEnum::FmAwry(FmAwryParams { sa_sampling }),
     )))
