@@ -5,7 +5,6 @@ use std::{cell::RefCell, collections::HashMap};
 
 use crate::utils::Stats;
 use crate::{utils::*, QueryStats};
-use itertools::Itertools;
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
 use packed_seq::Seq;
 use packed_seq::*;

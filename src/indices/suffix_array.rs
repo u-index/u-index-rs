@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
-use packed_seq::Seq;
+use packed_seq::PackedSeq;
 use tracing::trace;
 
 use crate::{utils::Stats, Index, Sketcher};
@@ -22,6 +22,7 @@ impl SuffixArray {
         self.sa.mem_size(SizeFlags::default())
     }
 
+    #[allow(unused)]
     pub fn log_sizes(&self, stats: &Stats) {
         let ms_seq_size = self.seq_size() as f32 / 1000000.;
         stats.add("ms_seq_size_MB", ms_seq_size);
@@ -34,13 +35,13 @@ impl SuffixArray {
     #[inline(always)]
     fn compare_minimizers<'i>(
         &self,
-        seq: impl Seq<'i>,
+        seq: PackedSeq,
         pattern: &[u8],
         // Byte index in ms_seq.
         i: usize,
         // Byte index in pattern.
         j: usize,
-        sketcher: &impl Sketcher,
+        sketcher: &dyn Sketcher,
     ) -> Ordering {
         let w = sketcher.width() as usize;
         if let Some(ms_seq) = &self.ms_seq {
@@ -56,8 +57,8 @@ impl SuffixArray {
 
     fn compare<'i>(
         &self,
-        sketcher: &impl Sketcher,
-        seq: impl Seq<'i>,
+        sketcher: &dyn Sketcher,
+        seq: PackedSeq,
         p: &[u8],
         // Byte-position in the sketched text that we compare against.
         // Must be a multiple of the kmer width.
@@ -102,7 +103,7 @@ impl SuffixArray {
     // https://github.com/y-256/libdivsufsort/blob/5f60d6f026c30fb4ac296f696b3c8b0eb71bd428/lib/utils.c
     /// Search text `t` for pattern `p` given (sparse) suffix array `sa`.
     /// Returns a `(pos, cnt)` pair where `pos` is the index of the first match and `cnt` is the number of matches.
-    fn sa_search<'i>(&self, sketcher: &impl Sketcher, seq: impl Seq<'i>, p: &[u8]) -> (i32, i32) {
+    fn sa_search<'i>(&self, sketcher: &dyn Sketcher, seq: PackedSeq, p: &[u8]) -> (i32, i32) {
         let mut size = self.sa.len() as i32;
         let mut half;
         let mut match_;
@@ -202,12 +203,12 @@ impl SuffixArray {
 }
 
 impl Index for SuffixArray {
-    fn query<'s>(
-        &'s self,
+    fn query(
+        &self,
         pattern: &[u8],
-        seq: impl Seq<'s>,
-        sketcher: &impl Sketcher,
-    ) -> Box<dyn Iterator<Item = usize> + 's> {
+        seq: PackedSeq,
+        sketcher: &dyn Sketcher,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
         let (pos, cnt) = self.sa_search(sketcher, seq, pattern);
         return Box::new((pos..pos + cnt).map(move |i| self.sa[i as usize] as usize));
     }

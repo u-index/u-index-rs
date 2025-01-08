@@ -3,8 +3,8 @@ use std::path::Path;
 use awry::alphabet::SymbolAlphabet;
 use awry::fm_index::{FmBuildArgs, FmIndex};
 use mem_dbg::MemSize;
-use packed_seq::{PackedSeq, Seq};
-use tracing::{info, trace};
+use packed_seq::PackedSeq;
+use tracing::info;
 
 use crate::{Index, IndexBuilder};
 
@@ -28,14 +28,12 @@ impl MemSize for FmAwry {
 }
 
 impl IndexBuilder for FmAwryParams {
-    type Index = FmAwry;
-
     fn build_with_stats(
         &self,
         text: Vec<u8>,
         _width: usize,
         _stats: &crate::utils::Stats,
-    ) -> Self::Index {
+    ) -> Box<dyn Index> {
         // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
         let unpacked = PackedSeq {
             seq: &text,
@@ -66,17 +64,17 @@ impl IndexBuilder for FmAwryParams {
 
         let fm = FmIndex::new(&build_args).unwrap();
         std::fs::remove_file(path).unwrap();
-        FmAwry { fm }
+        Box::new(FmAwry { fm })
     }
 }
 
 impl Index for FmAwry {
-    fn query<'s>(
-        &'s self,
+    fn query(
+        &self,
         pattern: &[u8],
-        _seq: impl packed_seq::Seq<'s>,
-        _sketcher: &impl crate::Sketcher,
-    ) -> Box<dyn Iterator<Item = usize> + 's> {
+        _seq: PackedSeq,
+        _sketcher: &dyn crate::Sketcher,
+    ) -> Box<dyn Iterator<Item = usize>> {
         // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
         let unpacked = unsafe {
             String::from_utf8_unchecked(

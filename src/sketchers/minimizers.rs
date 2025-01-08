@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use cacheline_ef::CachelineEfVec;
 use itertools::Itertools;
-use mem_dbg::{MemDbg, MemSize};
+use mem_dbg::MemSize;
 use minimizers::Captures;
-use packed_seq::Seq;
+use packed_seq::{PackedSeq, Seq};
 use sux::traits::IndexedSeq;
 use tracing::trace;
 
@@ -21,7 +21,7 @@ type KmerVal = u64;
 /// The start position of a minimizer.
 type Pos = usize;
 
-#[derive(Clone, Copy, MemSize, MemDbg)]
+#[derive(Clone, Copy, MemSize)]
 pub struct MinimizerParams {
     /// The kmer/minimizer size.
     pub k: usize,
@@ -40,10 +40,7 @@ impl MinimizerParams {
         self.l - self.k + 1
     }
 
-    fn minimizers<'s>(
-        &self,
-        seq: impl Seq<'s>,
-    ) -> impl Iterator<Item = (Pos, KmerVal)> + Captures<&'s ()> {
+    fn minimizers<'s>(&self, seq: PackedSeq<'s>) -> impl Iterator<Item = (Pos, KmerVal)> + use<'s> {
         let k = self.k;
         let w = self.w();
         let mut out = vec![];
@@ -76,13 +73,7 @@ impl MinimizerParams {
 }
 
 impl SketcherBuilder for MinimizerParams {
-    type Sketcher = MinimizerSketcher;
-
-    fn sketch_with_stats<'s, S: Seq<'s>>(
-        &self,
-        seq: S,
-        stats: &Stats,
-    ) -> (Self::Sketcher, MsSequence) {
+    fn sketch_with_stats(&self, seq: PackedSeq, stats: &Stats) -> (Box<dyn Sketcher>, MsSequence) {
         assert!(
             self.k <= KmerVal::BITS as usize / 2,
             "k={} is too large to fit k bytes in a u64",
@@ -148,17 +139,17 @@ impl SketcherBuilder for MinimizerParams {
         let ms_sequence = sketcher
             .remap_minimizer_values(&min_val)
             .expect("All minimizers of the input should be found");
-        (sketcher, ms_sequence)
+        (Box::new(sketcher), ms_sequence)
     }
 }
 
-#[derive(MemSize, MemDbg)]
+#[derive(MemSize)]
 enum MinimizerPositions {
     EliasFano(sux::dict::elias_fano::EfSeq),
     CachelineEf(cacheline_ef::CachelineEfVec),
 }
 
-#[derive(MemSize, MemDbg)]
+#[derive(MemSize)]
 pub struct MinimizerSketcher {
     params: MinimizerParams,
     /// Positions in the plain sequence of all minimizers.
@@ -207,7 +198,7 @@ impl Sketcher for MinimizerSketcher {
         }
     }
 
-    fn sketch<'s>(&self, seq: impl Seq<'s>) -> Result<(MsSequence, usize), SketchError> {
+    fn sketch(&self, seq: PackedSeq) -> Result<(MsSequence, usize), SketchError> {
         let (min_poss, min_vals): (Vec<Pos>, Vec<KmerVal>) = self.params.minimizers(seq).unzip();
         let offset = *min_poss.first().ok_or(SketchError::TooShort)?;
         Ok((
@@ -237,11 +228,7 @@ impl Sketcher for MinimizerSketcher {
         Some(usize::from_be_bytes(val))
     }
 
-    fn get_ms_minimizer_via_plaintext<'s>(
-        &self,
-        seq: impl Seq<'s>,
-        ms_pos: usize,
-    ) -> Option<usize> {
+    fn get_ms_minimizer_via_plaintext(&self, seq: PackedSeq, ms_pos: usize) -> Option<usize> {
         let pos = self.ms_pos_to_plain_pos(ms_pos)?;
         let kmer = packed_seq::Seq::to_word(&seq.slice(pos..pos + self.params.k)) as KmerVal;
         if self.params.remap {

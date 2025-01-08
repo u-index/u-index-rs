@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use indices::IndexBuilderEnum;
 use pyo3::pyclass;
-use sketchers::SketcherBuilderEnum;
 
 pub mod bench;
 pub mod indices;

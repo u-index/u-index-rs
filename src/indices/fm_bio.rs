@@ -6,6 +6,7 @@ use bio::data_structures::fmindex::{BackwardSearchResult, FMIndex, FMIndexable};
 use bio::data_structures::suffix_array::{suffix_array, SampledSuffixArray, SuffixArray};
 use itertools::Itertools;
 use mem_dbg::MemSize;
+use packed_seq::PackedSeq;
 use tracing::trace;
 
 use crate::utils::{Stats, Timer};
@@ -34,6 +35,7 @@ impl MemSize for FmBio {
 }
 
 impl FmBio {
+    #[allow(unused)]
     pub fn log_sizes(&self, stats: &Stats) {
         let bwt_size = self.sampled_sa.bwt().mem_size(Default::default()) as f32 / 1000000.;
         stats.add("bwt_size_MB", bwt_size);
@@ -54,14 +56,12 @@ impl FmBio {
 }
 
 impl IndexBuilder for FmBioParams {
-    type Index = FmBio;
-
     fn build_with_stats(
         &self,
         mut text: Vec<u8>,
         _width: usize,
         stats: &crate::utils::Stats,
-    ) -> Self::Index {
+    ) -> Box<dyn Index> {
         // Rust-bio expects a sentinel character at the end of the text.
         text.push(0);
 
@@ -85,17 +85,17 @@ impl IndexBuilder for FmBioParams {
         );
         timer.next("FM: index");
         let fm = FMIndex::new(bwt, less, occ);
-        FmBio { fm, sampled_sa }
+        Box::new(FmBio { fm, sampled_sa })
     }
 }
 
 impl Index for FmBio {
-    fn query<'s>(
-        &'s self,
+    fn query(
+        &self,
         pattern: &[u8],
-        _seq: impl packed_seq::Seq<'s>,
-        _sketcher: &impl crate::Sketcher,
-    ) -> Box<dyn Iterator<Item = usize> + 's> {
+        _seq: PackedSeq,
+        _sketcher: &dyn crate::Sketcher,
+    ) -> Box<dyn Iterator<Item = usize>> {
         let bsr = self.fm.backward_search(pattern.iter());
         let positions = match bsr {
             BackwardSearchResult::Complete(sai) => sai.occ(&self.sampled_sa),

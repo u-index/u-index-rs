@@ -1,9 +1,9 @@
 use tracing::trace;
 
-use super::SuffixArray;
+use super::suffix_array::SuffixArray;
 use crate::{
     utils::{Stats, Timer},
-    IndexBuilder,
+    Index, IndexBuilder,
 };
 
 /// Build a 32-bit suffix array using `libdivsufsort`.
@@ -14,9 +14,7 @@ pub struct DivSufSortSa {
 }
 
 impl IndexBuilder for DivSufSortSa {
-    type Index = SuffixArray;
-
-    fn build_with_stats(&self, ms_seq: Vec<u8>, width: usize, stats: &Stats) -> Self::Index {
+    fn build_with_stats(&self, ms_seq: Vec<u8>, width: usize, stats: &Stats) -> Box<dyn Index> {
         let mut timer = Timer::new_stats("Building suffix array", stats);
         trace!("MS sequence length {}", ms_seq.len());
         stats.set("sequence length", ms_seq.len());
@@ -30,9 +28,9 @@ impl IndexBuilder for DivSufSortSa {
             sa.retain(|x| *x % width as i32 == 0);
         }
 
-        SuffixArray {
+        Box::new(SuffixArray {
             sa,
             ms_seq: self.store_ms_seq.then(|| ms_seq),
-        }
+        })
     }
 }

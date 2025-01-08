@@ -5,18 +5,13 @@ use packed_seq::*;
 use sux::traits::SuccUnchecked;
 use tracing::trace;
 
-use crate::{
-    indices::{IndexBuilderEnum, IndexEnum},
-    sketchers::{SketcherBuilderEnum, SketcherEnum},
-    traits::*,
-    utils::*,
-};
+use crate::{traits::*, utils::*};
 
 #[derive(MemSize)]
-pub struct UIndex<SV: SeqVec> {
-    pub(crate) seq: SV,
-    sketcher: SketcherEnum,
-    ms_index: IndexEnum,
+pub struct UIndex {
+    pub(crate) seq: PackedSeqVec,
+    sketcher: Box<dyn Sketcher>,
+    ms_index: Box<dyn Index>,
     pub(crate) query_stats: RefCell<QueryStats>,
     stats: Stats,
     ranges: sux::dict::elias_fano::EfDict,
@@ -53,7 +48,7 @@ pub struct QueryStats {
     pub t_ranges: usize,
 }
 
-impl<SV: SeqVec> Drop for UIndex<SV> {
+impl Drop for UIndex {
     fn drop(&mut self) {
         let QueryStats {
             mut queries,
@@ -98,20 +93,20 @@ t_ranges          {t_ranges:>9} ns/query"
     }
 }
 
-impl<SV: SeqVec> UIndex<SV> {
+impl UIndex {
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
     pub fn build(
-        mut seq: SV,
-        sketch_params: SketcherBuilderEnum,
-        index_params: IndexBuilderEnum,
+        mut seq: PackedSeqVec,
+        sketch_params: Box<dyn SketcherBuilder>,
+        index_params: Box<dyn IndexBuilder>,
     ) -> Self {
         *INIT_TRACE;
         let stats = Stats::default();
         let mut timer = Timer::new_stats("Sketch", &stats);
         let (sketcher, ms_seq) = sketch_params.sketch_with_stats(seq.as_slice(), &stats);
         timer.next("Build");
-        let ms_index = index_params.build_with_stats(ms_seq.0, Sketcher::width(&sketcher), &stats);
+        let ms_index = index_params.build_with_stats(ms_seq.0, Sketcher::width(&*sketcher), &stats);
         drop(timer);
 
         // Build seq ranges.
@@ -140,7 +135,7 @@ impl<SV: SeqVec> UIndex<SV> {
         uindex.stats.add("sketch_size_MB", sketch_size);
         trace!("Sketch size:   {sketch_size:>8.3} MB",);
 
-        uindex.ms_index.log_sizes(&uindex.stats);
+        // uindex.ms_index.log_sizes(&uindex.stats);
 
         let index_size = uindex.ms_index.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("index_size_MB", index_size);
@@ -184,7 +179,7 @@ impl<SV: SeqVec> UIndex<SV> {
     /// When the pattern contains an unknown minimizer, an empty iterator is returned.
     pub fn query<'p>(
         &'p self,
-        pattern: <SV as SeqVec>::Seq<'p>,
+        pattern: PackedSeq<'p>,
     ) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
         self.query_stats.borrow_mut().queries += 1;
         let t1 = std::time::Instant::now();
@@ -203,7 +198,7 @@ impl<SV: SeqVec> UIndex<SV> {
         self.query_stats.borrow_mut().t_sketch += t2.duration_since(t1).subsec_nanos() as usize;
         let ms_occ = self
             .ms_index
-            .query(&ms_pattern.0, self.seq.as_slice(), &self.sketcher);
+            .query(&ms_pattern.0, self.seq.as_slice(), &*self.sketcher);
         let t3 = std::time::Instant::now();
         self.query_stats.borrow_mut().t_search += t3.duration_since(t2).subsec_nanos() as usize;
         let mut last = t3;

@@ -1,19 +1,31 @@
+use std::marker::PhantomData;
+
 use crate::{Index, IndexBuilder};
 use mem_dbg::MemSize;
+use packed_seq::PackedSeq;
 use sdsl_lite_fm::*;
 use tracing::{info, trace};
 
 #[derive(Debug)]
 pub struct FmSdslParams<T: SdslFmIndex<C>, C> {
-    _phantom_c: std::marker::PhantomData<C>,
-    _phantom_t: std::marker::PhantomData<T>,
+    _c: PhantomData<C>,
+    _t: PhantomData<T>,
+}
+
+impl<T: SdslFmIndex<C>, C> FmSdslParams<T, C> {
+    pub fn new() -> Self {
+        Self {
+            _c: PhantomData,
+            _t: PhantomData,
+        }
+    }
 }
 
 impl<T: SdslFmIndex<C>, C> Clone for FmSdslParams<T, C> {
     fn clone(&self) -> Self {
         Self {
-            _phantom_c: self._phantom_c.clone(),
-            _phantom_t: self._phantom_t.clone(),
+            _c: self._c.clone(),
+            _t: self._t.clone(),
         }
     }
 }
@@ -22,7 +34,7 @@ impl<T: SdslFmIndex<C>, C> Copy for FmSdslParams<T, C> {}
 
 pub struct FmSdsl<T: SdslFmIndex<C>, C> {
     fm: T,
-    _phantom_c: std::marker::PhantomData<C>,
+    _phantom_c: PhantomData<C>,
 }
 
 impl<T: SdslFmIndex<C>, C> MemSize for FmSdsl<T, C> {
@@ -35,14 +47,12 @@ impl<T: SdslFmIndex<C> + 'static, C: 'static + Copy> IndexBuilder for FmSdslPara
 where
     FmSdsl<T, C>: Index,
 {
-    type Index = FmSdsl<T, C>;
-
     fn build_with_stats(
         &self,
         mut text: Vec<u8>,
         width: usize,
         _stats: &crate::utils::Stats,
-    ) -> Self::Index {
+    ) -> Box<dyn Index> {
         info!("Build INT SDSL on length {}", text.len());
 
         // Convert from big endian to little endian.
@@ -59,20 +69,20 @@ where
         trace!("Written to /tmp/input");
         trace!("width: {}", width);
 
-        FmSdsl::<T, C> {
+        Box::new(FmSdsl::<T, C> {
             fm: T::new(path, width),
-            _phantom_c: std::marker::PhantomData,
-        }
+            _phantom_c: PhantomData,
+        })
     }
 }
 
 impl<T: SdslFmIndex<u64>> Index for FmSdsl<T, u64> {
-    fn query<'s>(
-        &'s self,
+    fn query(
+        &self,
         pattern: &[u8],
-        _seq: impl packed_seq::Seq<'s>,
-        sketcher: &impl crate::Sketcher,
-    ) -> Box<dyn Iterator<Item = usize> + 's> {
+        _seq: PackedSeq,
+        sketcher: &dyn crate::Sketcher,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
         // Convert pattern to a [u64].
         let width = sketcher.width();
         assert!(width <= 8);
@@ -94,12 +104,12 @@ impl<T: SdslFmIndex<u64>> Index for FmSdsl<T, u64> {
 }
 
 impl<T: SdslFmIndex<u8>> Index for FmSdsl<T, u8> {
-    fn query<'s>(
-        &'s self,
+    fn query(
+        &self,
         pattern: &[u8],
-        _seq: impl packed_seq::Seq<'s>,
-        _sketcher: &impl crate::Sketcher,
-    ) -> Box<dyn Iterator<Item = usize> + 's> {
+        _seq: PackedSeq,
+        _sketcher: &dyn crate::Sketcher,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
         let positions = self.fm.locate(&pattern);
         let len = positions.len();
         Box::new((0..len).map(move |i| positions.get(i)))

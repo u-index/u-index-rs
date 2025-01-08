@@ -1,9 +1,9 @@
 use tracing::trace;
 
-use super::SuffixArray;
+use super::suffix_array::SuffixArray;
 use crate::{
     utils::{Stats, Timer},
-    IndexBuilder,
+    Index, IndexBuilder,
 };
 
 /// Build a 32-bit suffix array using `libsais`.
@@ -14,9 +14,7 @@ pub struct LibSaisSa {
 }
 
 impl IndexBuilder for LibSaisSa {
-    type Index = SuffixArray;
-
-    fn build_with_stats(&self, mut ms_seq: Vec<u8>, width: usize, stats: &Stats) -> Self::Index {
+    fn build_with_stats(&self, mut ms_seq: Vec<u8>, width: usize, stats: &Stats) -> Box<dyn Index> {
         let mut timer = Timer::new_stats("Building suffix array", stats);
         trace!("MS sequence length {}", ms_seq.len());
         stats.set("sequence length", ms_seq.len());
@@ -136,9 +134,9 @@ impl IndexBuilder for LibSaisSa {
             }
         }
 
-        SuffixArray {
+        Box::new(SuffixArray {
             sa,
             ms_seq: self.store_ms_seq.then(|| ms_seq),
-        }
+        })
     }
 }

@@ -1,4 +1,4 @@
-use packed_seq::SeqVec;
+use packed_seq::{PackedSeq, SeqVec};
 
 use super::*;
 
@@ -13,19 +13,13 @@ pub struct Identity {
 }
 
 impl SketcherBuilder for IdentityParams {
-    type Sketcher = Identity;
-
-    fn sketch_with_stats<'s, S: Seq<'s>>(
-        &self,
-        seq: S,
-        _stats: &Stats,
-    ) -> (Self::Sketcher, MsSequence) {
+    fn sketch_with_stats(&self, seq: PackedSeq, _stats: &Stats) -> (Box<dyn Sketcher>, MsSequence) {
         assert!(
-            S::BASES_PER_BYTE == 1,
+            PackedSeq::BASES_PER_BYTE == 1,
             "Identity sketcher does not work for packed sequences."
         );
         let seq = seq.to_vec().into_raw();
-        (Identity { len: seq.len() }, MsSequence(seq))
+        (Box::new(Identity { len: seq.len() }), MsSequence(seq))
     }
 }
 
@@ -42,7 +36,7 @@ impl Sketcher for Identity {
         self.len
     }
 
-    fn sketch<'s>(&self, seq: impl Seq<'s>) -> Result<(MsSequence, usize), SketchError> {
+    fn sketch(&self, seq: PackedSeq) -> Result<(MsSequence, usize), SketchError> {
         Ok((MsSequence(seq.to_vec().into_raw()), 0))
     }
 
@@ -54,11 +48,7 @@ impl Sketcher for Identity {
         Some(ms_seq[ms_pos] as usize)
     }
 
-    fn get_ms_minimizer_via_plaintext<'s>(
-        &self,
-        seq: impl Seq<'s>,
-        ms_pos: usize,
-    ) -> Option<usize> {
+    fn get_ms_minimizer_via_plaintext(&self, seq: PackedSeq, ms_pos: usize) -> Option<usize> {
         Some(seq.get_ascii(ms_pos) as usize)
     }
 }
