@@ -12,7 +12,7 @@ incremental = true
 cacheline-ef = { git = "https://github.com/ragnargrootkoerkamp/cacheline-ef" }
 itertools = "0.13.0"
 libdivsufsort-rs = "0.1.4"
-libsais-rs = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/libsais-rs", features = ["openmp"] }
+libsais-rs = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/libsais-rs"}
 mem_dbg = "0.2.4"
 minimizers = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/minimizers", default-features = false}
 packed-seq = { version = "0.1.0", git = "https://github.com/rust-seq/packed-seq" }
@@ -41,5 +41,8 @@ color-backtrace = "0.6.1"
 [features]
 # Enable python bindings
 python-bindings = ['dep:pyo3']
+
+# Not enabled by default, since MacOS doesn't have OpenMP.
+openmp = ['libsais-rs/openmp']
 
 default = ['python-bindings']

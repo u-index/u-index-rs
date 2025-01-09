@@ -26,7 +26,10 @@ impl IndexBuilder for LibSaisSa {
             1 => {
                 sa = vec![0; ms_seq.len()];
                 if self.par {
+                    #[cfg(feature = "openmp")]
                     libsais_rs::par::suffix_array_u8(&ms_seq, &mut sa).expect("suffix array");
+                    #[cfg(not(feature = "openmp"))]
+                    panic!("Parallel suffix array construction with libsais required the 'openmp' feature.");
                 } else {
                     libsais_rs::suffix_array_u8(&ms_seq, &mut sa).expect("suffix array");
                 }
@@ -46,7 +49,10 @@ impl IndexBuilder for LibSaisSa {
                 sa = vec![0; ms_seq.len()];
                 trace!("Building suffix array");
                 if self.par {
+                    #[cfg(feature = "openmp")]
                     libsais_rs::par::suffix_array_u16(&ms_seq, &mut sa).expect("suffix array");
+                    #[cfg(not(feature = "openmp"))]
+                    panic!("Parallel suffix array construction with libsais required the 'openmp' feature.");
                 } else {
                     libsais_rs::suffix_array_u16(&ms_seq, &mut sa).expect("suffix array");
                 }
@@ -74,8 +80,11 @@ impl IndexBuilder for LibSaisSa {
                 let alphabet_size = i32::MAX;
                 trace!("Building suffix array");
                 if self.par {
+                    #[cfg(feature = "openmp")]
                     libsais_rs::par::suffix_array_i32(ms_seq, &mut sa, alphabet_size)
                         .expect("suffix array");
+                    #[cfg(not(feature = "openmp"))]
+                    panic!("Parallel suffix array construction with libsais required the 'openmp' feature.");
                 } else {
                     libsais_rs::suffix_array_i32(ms_seq, &mut sa, alphabet_size)
                         .expect("suffix array");
@@ -104,8 +113,11 @@ impl IndexBuilder for LibSaisSa {
                 let alphabet_size = i64::MAX;
                 trace!("Building suffix array");
                 if self.par {
+                    #[cfg(feature = "openmp")]
                     libsais_rs::par::long_suffix_array_i64(ms_seq, &mut sa_64, alphabet_size)
                         .expect("suffix array");
+                    #[cfg(not(feature = "openmp"))]
+                    panic!("Parallel suffix array construction with libsais required the 'openmp' feature.");
                 } else {
                     libsais_rs::long_suffix_array_i64(ms_seq, &mut sa_64, alphabet_size)
                         .expect("suffix array");
@@ -125,7 +137,10 @@ impl IndexBuilder for LibSaisSa {
                 // TODO: For remaining alphabet sizes, it's probably better to re-code them to the next power of 2 size.
                 sa = vec![0; ms_seq.len()];
                 if self.par {
+                    #[cfg(feature = "openmp")]
                     libsais_rs::par::suffix_array_u8(&ms_seq, &mut sa).expect("suffix array");
+                    #[cfg(not(feature = "openmp"))]
+                    panic!("Parallel suffix array construction with libsais required the 'openmp' feature.");
                 } else {
                     libsais_rs::suffix_array_u8(&ms_seq, &mut sa).expect("suffix array");
                 }
