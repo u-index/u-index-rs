@@ -47,9 +47,23 @@ impl IndexBuilder for FmAwryParams {
         trace!("Explode: {explode}");
 
         let mut fasta = b">seq\n".to_vec();
-        fasta.extend(unpacked);
-        fasta.push(b'\n');
+        if !explode {
+            fasta.extend(text.iter().copied().map(|x| packed_seq::unpack(x)));
+        } else {
+            // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
+            let unpacked = PackedSeq {
+                seq: &text,
+                offset: 0,
+                len: 4 * text.len(),
+            }
+            .unpack();
 
+            info!("Build AWRY on length {}", unpacked.len());
+
+            fasta.extend(unpacked);
+        }
+
+        fasta.push(b'\n');
         let path = "/tmp/input.fa";
         // Write text to input file.
         std::fs::write(path, fasta).unwrap();
@@ -66,7 +80,7 @@ impl IndexBuilder for FmAwryParams {
 
         let fm = FmIndex::new(&build_args).unwrap();
         std::fs::remove_file(path).unwrap();
-        Some(Box::new(FmAwry { fm }))
+        Some(Box::new(FmAwry { fm, explode }))
     }
 }
 
@@ -79,22 +93,39 @@ impl Index for FmAwry {
     ) -> Box<dyn Iterator<Item = usize>> {
         // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
         let unpacked = unsafe {
-            String::from_utf8_unchecked(
+            String::from_utf8_unchecked(if !self.explode {
+                pattern
+                    .iter()
+                    .copied()
+                    .map(|x| packed_seq::unpack(x))
+                    .collect_vec()
+            } else {
                 PackedSeq {
                     seq: &pattern,
                     offset: 0,
                     len: 4 * pattern.len(),
                 }
-                .unpack(),
-            )
+                .unpack()
+            })
         };
 
         let positions = self.fm.locate_string(&unpacked);
+        let explode = self.explode;
         Box::new(
             positions
                 .into_iter()
                 .map(|x| x.local_position())
-                .filter_map(|x| if x % 4 == 0 { Some(x / 4) } else { None }),
+                .filter_map(move |x| {
+                    if !explode {
+                        Some(x)
+                    } else {
+                        if x % 4 == 0 {
+                            Some(x / 4)
+                        } else {
+                            None
+                        }
+                    }
+                }),
         )
     }
 }
