@@ -1,15 +1,18 @@
-use packed_seq::{PackedSeq, SeqVec};
+use packed_seq::PackedSeq;
 use serde_json::Value;
 
 use super::*;
 
-/// 'Sketch' the sequence to itself.
+/// 'Sketch' the packed sequence into an unpacked representation.
 /// Convenient for testing purposes.
-#[derive(Clone, Copy)]
-pub struct IdentityParams;
+#[derive(MemSize, Clone, Copy, Debug)]
+pub struct IdentityParams {
+    pub skip_zero: bool,
+}
 
-#[derive(MemSize, MemDbg)]
+#[derive(MemSize)]
 pub struct Identity {
+    params: IdentityParams,
     len: usize,
 }
 
@@ -19,6 +22,7 @@ impl SketcherBuilder for IdentityParams {
         stats.set("sketch_skip_zero", self.skip_zero as u64);
         let seq = seq
             .iter_bp()
+            .map(|x| x + (if self.skip_zero { 1 } else { 0 }))
             .collect::<Vec<_>>();
         (
             Box::new(Identity {
@@ -46,6 +50,7 @@ impl Sketcher for Identity {
     fn sketch(&self, seq: PackedSeq) -> Result<(MsSequence, usize), SketchError> {
         let seq = seq
             .iter_bp()
+            .map(|x| x + (if self.params.skip_zero { 1 } else { 0 }))
             .collect::<Vec<_>>();
         Ok((MsSequence(seq), 0))
     }
@@ -59,6 +64,6 @@ impl Sketcher for Identity {
     }
 
     fn get_ms_minimizer_via_plaintext(&self, seq: PackedSeq, ms_pos: usize) -> Option<usize> {
-        Some(seq.get(ms_pos) as usize)
+        Some(seq.get(ms_pos) as usize + (if self.params.skip_zero { 1 } else { 0 }))
     }
 }

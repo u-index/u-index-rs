@@ -10,7 +10,7 @@ use super::*;
 #[test]
 fn test_identity_simple() {
     let seq = PackedSeqVec::from_ascii(b"ACGTACGTACGTACGT");
-    let sketcher = &IdentityParams;
+    let sketcher = &IdentityParams { skip_zero: false };
     let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
@@ -24,7 +24,7 @@ fn test_identity_simple() {
 #[test]
 fn test_identity_positive() {
     let seq = PackedSeqVec::random(1000000);
-    let sketcher = &IdentityParams;
+    let sketcher = &IdentityParams { skip_zero: false };
     let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
@@ -44,7 +44,7 @@ fn test_identity_positive() {
 #[test]
 fn test_identity_negative() {
     let seq = PackedSeqVec::random(1000000);
-    let sketcher = &IdentityParams;
+    let sketcher = &IdentityParams { skip_zero: false };
     let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
@@ -99,7 +99,7 @@ fn test_minspace_positive() {
 fn test_minspace_negative() {
     let seq = PackedSeqVec::random(1000000);
 
-    let sketcher = &IdentityParams;
+    let sketcher = &IdentityParams { skip_zero: false };
     let ms_index = &DivSufSortSa {
         store_ms_seq: true,
         compress: true,
@@ -138,7 +138,7 @@ fn test_minspace_negative() {
 #[test]
 fn test_identity_positive_noms() {
     let seq = PackedSeqVec::random(1000000);
-    let sketcher = &IdentityParams;
+    let sketcher = &IdentityParams { skip_zero: false };
     let ms_index = &DivSufSortSa {
         store_ms_seq: false,
         compress: true,
@@ -158,7 +158,7 @@ fn test_identity_positive_noms() {
 #[test]
 fn test_identity_negative_noms() {
     let seq = PackedSeqVec::random(1000000);
-    let sketcher = &IdentityParams;
+    let sketcher = &IdentityParams { skip_zero: false };
     let ms_index = &DivSufSortSa {
         store_ms_seq: false,
         compress: true,
@@ -213,7 +213,7 @@ fn test_minspace_positive_noms() {
 fn test_minspace_negative_noms() {
     let seq = PackedSeqVec::random(1000000);
 
-    let sketcher = &IdentityParams;
+    let sketcher = &IdentityParams { skip_zero: false };
     let ms_index = &DivSufSortSa {
         store_ms_seq: false,
         compress: true,
