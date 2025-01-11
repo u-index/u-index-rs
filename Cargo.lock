@@ -2542,7 +2542,6 @@ dependencies = [
  "needletail",
  "num-traits",
  "packed-seq",
- "pyo3",
  "rand",
  "sdsl-lite-fm",
  "serde_json",

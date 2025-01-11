@@ -25,9 +25,6 @@ bio = "2.0.3"
 # bio = { version = "2.0.3", path = "../forks/rust-bio" }
 awry = "0.2"
 
-# Optional for python bindings
-pyo3 = { version = "0.22.2", features = ["extension-module"], optional = true }
-
 # Also used via python interface.
 rand = "0.8.5"
 needletail = "0.6.1"
@@ -40,10 +37,6 @@ serde_json = "1.0.135"
 [dev-dependencies]
 
 [features]
-# Enable python bindings
-python-bindings = ['dep:pyo3']
-
 # Not enabled by default, since MacOS doesn't have OpenMP.
 openmp = ['libsais-rs/openmp']
 
-default = ['python-bindings']

@@ -9,9 +9,6 @@ pub mod utils;
 pub use traits::*;
 pub use u_index::*;
 
-// #[cfg(feature = "python-bindings")]
-// mod py;
-
 #[cfg(test)]
 mod test;
 
