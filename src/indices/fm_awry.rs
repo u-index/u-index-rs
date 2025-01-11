@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use awry::alphabet::SymbolAlphabet;
 use awry::fm_index::{FmBuildArgs, FmIndex};
 use mem_dbg::MemSize;
@@ -13,18 +11,10 @@ pub struct FmAwryParams {
     pub sa_sampling: usize,
 }
 
+#[derive(MemSize)]
 pub struct FmAwry {
     fm: awry::fm_index::FmIndex,
-}
-
-impl MemSize for FmAwry {
-    fn mem_size(&self, _flags: mem_dbg::SizeFlags) -> usize {
-        let path = Path::new("/tmp/fm_index.awry");
-        self.fm.save(path).unwrap();
-        let size = path.metadata().unwrap().len() as usize;
-        std::fs::remove_file(path).unwrap();
-        size
-    }
+    explode: bool,
 }
 
 impl IndexBuilder for FmAwryParams {
@@ -53,7 +43,7 @@ impl IndexBuilder for FmAwryParams {
         std::fs::write(path, fasta).unwrap();
 
         let build_args = FmBuildArgs {
-            input_file_src: path.to_string(),
+            input_file_src: path.into(),
             suffix_array_output_src: None,
             suffix_array_compression_ratio: Some(self.sa_sampling.try_into().unwrap()),
             lookup_table_kmer_len: None,
