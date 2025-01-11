@@ -33,8 +33,18 @@ impl IndexBuilder for FmAwryParams {
             len: 4 * text.len(),
         }
         .unpack();
+        stats.set_val("index", Value::String("AWRY".to_string()));
+        stats.set("index_width", width);
+        stats.set("index_sa_sampling", self.sa_sampling as u64);
 
-        info!("Build AWRY on length {}", unpacked.len());
+        let max = text.iter().copied().max().unwrap();
+        trace!("Max value in text: {}", max);
+        if max == 4 {
+            warn!("AWRY takes packed input, or packed values in 0..4. `skip_zero: true` does not make sense here.");
+            return None;
+        }
+        let explode = max >= 4;
+        trace!("Explode: {explode}");
 
         let mut fasta = b">seq\n".to_vec();
         fasta.extend(unpacked);

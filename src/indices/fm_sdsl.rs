@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{any::type_name, marker::PhantomData};
 
 use crate::{Index, IndexBuilder};
 use mem_dbg::MemSize;
@@ -7,10 +7,15 @@ use sdsl_lite_fm::*;
 use serde_json::Value;
 use tracing::{info, trace, warn};
 
-#[derive(Debug)]
 pub struct FmSdslParams<T: SdslFmIndex<C>, C> {
     _c: PhantomData<C>,
     _t: PhantomData<T>,
+}
+
+impl<T: SdslFmIndex<C>, C> std::fmt::Debug for FmSdslParams<T, C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(type_name::<T>()).finish()
+    }
 }
 
 impl<T: SdslFmIndex<C>, C> FmSdslParams<T, C> {
@@ -53,7 +58,12 @@ where
         mut text: Vec<u8>,
         width: usize,
         stats: &crate::utils::Stats,
-    ) -> Option<Box<dyn Index>> {
+    ) -> Box<dyn Index> {
+        stats.set_val(
+            "index",
+            Value::String(std::any::type_name::<T>().to_string()),
+        );
+        stats.set("index_width", width);
         info!("Building INT SDSL on length {}", text.len());
 
         // Convert from big endian to little endian.

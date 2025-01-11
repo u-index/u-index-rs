@@ -163,6 +163,7 @@ impl UIndex {
     pub fn stats(&self) -> HashMap<&'static str, Value> {
         let stats = self.stats.clone();
         let qs = self.query_stats.borrow();
+        stats.set("queries", qs.queries);
         stats.set("query_too_short", qs.too_short);
         stats.set("query_unknown_minimizer", qs.unknown_minimizer);
         stats.set("query_misaligned_ms_pos", qs.misaligned_ms_pos);

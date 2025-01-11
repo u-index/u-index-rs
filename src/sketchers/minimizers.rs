@@ -86,6 +86,13 @@ impl MinimizerParams {
 
 impl SketcherBuilder for MinimizerParams {
     fn sketch_with_stats(&self, seq: PackedSeq, stats: &Stats) -> (Box<dyn Sketcher>, MsSequence) {
+        stats.set_val("sketcher", Value::String("Minimizers".to_string()));
+        stats.set("sketch_k", self.k);
+        stats.set("sketch_l", self.l);
+        stats.set("sketch_remap", self.remap as u64);
+        stats.set("sketch_cacheline_ef", self.cacheline_ef as u64);
+        stats.set("sketch_skip_zero", self.skip_zero as u64);
+
         assert!(
             self.k <= KmerVal::BITS as usize / 2,
             "k={} is too large to fit k bytes in a u64",
@@ -121,6 +128,10 @@ impl SketcherBuilder for MinimizerParams {
             let kmer_width = kmer_width_bits.div_ceil(8).max(1) as usize;
             (kmer_map, kmer_width)
         } else {
+            trace!(
+                "Using raw minimizer values. Max: {}",
+                min_val.iter().max().unwrap_or(&0)
+            );
             stats.set("kmer_width_bits", 2 * self.k);
             (HashMap::new(), self.k.div_ceil(4))
         };

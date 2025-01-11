@@ -1,7 +1,7 @@
 mod identity;
 mod minimizers;
 
-use mem_dbg::{MemDbg, MemSize};
+use mem_dbg::MemSize;
 use packed_seq::Seq;
 
 use crate::{utils::Stats, MsSequence, SketchError, Sketcher, SketcherBuilder};
