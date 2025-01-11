@@ -151,7 +151,7 @@ impl UIndex {
         uindex
     }
 
-    pub fn stats(&self) -> HashMap<&'static str, f32> {
+    pub fn stats(&self) -> HashMap<&'static str, Value> {
         let stats = self.stats.clone();
         let qs = self.query_stats.borrow();
         stats.set("query_too_short", qs.too_short);

@@ -4,8 +4,9 @@ use std::{
     sync::{LazyLock, Mutex},
 };
 
-use mem_dbg::{MemDbg, MemSize, SizeFlags};
+use mem_dbg::{MemSize, SizeFlags};
 use packed_seq::SeqVec;
+use serde_json::{value::Value, Number};
 use tracing::trace;
 
 thread_local! {
@@ -82,21 +83,37 @@ fn init_trace() {
 
 pub static INIT_TRACE: LazyLock<()> = LazyLock::new(init_trace);
 
-#[derive(Default, MemSize, MemDbg)]
+#[derive(Default)]
 pub struct Stats {
-    stats: Mutex<HashMap<&'static str, f32>>,
+    stats: Mutex<HashMap<&'static str, Value>>,
 }
+
+impl MemSize for Stats {
+    fn mem_size(&self, _flags: SizeFlags) -> usize {
+        0
+    }
+}
+
 impl Stats {
+    pub fn set_val(&self, name: &'static str, value: Value) {
+        self.stats.lock().unwrap().insert(name, value);
+    }
     pub fn set(&self, name: &'static str, value: impl num_traits::ToPrimitive) {
-        self.stats
-            .lock()
-            .unwrap()
-            .insert(name, value.to_f32().unwrap());
+        self.stats.lock().unwrap().insert(
+            name,
+            Value::Number(Number::from_f64(value.to_f64().unwrap()).unwrap()),
+        );
     }
     pub fn add(&self, name: &'static str, value: f32) {
-        *self.stats.lock().unwrap().entry(name).or_default() += value;
+        let mut lock = self.stats.lock().unwrap();
+        let entry = lock.entry(name).or_default();
+        let old = entry
+            .as_number()
+            .map_or(0.0, |n| n.as_f64().unwrap_or_default());
+        let new = old + value as f64;
+        *entry = Value::Number(Number::from_f64(new).unwrap());
     }
-    pub fn into(self) -> HashMap<&'static str, f32> {
+    pub fn into(self) -> HashMap<&'static str, Value> {
         self.stats.into_inner().unwrap()
     }
     pub fn clone(&self) -> Self {

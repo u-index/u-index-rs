@@ -1,3 +1,4 @@
+use serde_json::Value;
 use tracing::trace;
 
 use super::suffix_array::SuffixArray;
@@ -7,7 +8,7 @@ use crate::{
 };
 
 /// Build a 32-bit suffix array using `libdivsufsort`.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct DivSufSortSa {
     pub store_ms_seq: bool,
     pub compress: bool,
@@ -15,9 +16,14 @@ pub struct DivSufSortSa {
 
 impl IndexBuilder for DivSufSortSa {
     fn build_with_stats(&self, ms_seq: Vec<u8>, width: usize, stats: &Stats) -> Box<dyn Index> {
-        let mut timer = Timer::new_stats("Building suffix array", stats);
+        stats.set_val("index", Value::String("divsufsort".to_string()));
+        stats.set("index_width", width);
+        stats.set("index_store_ms_seq", self.store_ms_seq as u64);
+        stats.set("index_compress", self.compress as u64);
+
         trace!("MS sequence length {}", ms_seq.len());
         stats.set("sequence length", ms_seq.len());
+        let mut timer = Timer::new_stats("Building suffix array", stats);
 
         // If we do not store the ms_seq, first invert the byte order of each minimizer to make sorting aligned with sorting packed u64's.
 

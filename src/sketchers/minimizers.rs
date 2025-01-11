@@ -5,6 +5,7 @@ use itertools::Itertools;
 use mem_dbg::MemSize;
 use minimizers::Captures;
 use packed_seq::{PackedSeq, Seq};
+use serde_json::Value;
 use sux::traits::IndexedSeq;
 use tracing::trace;
 
@@ -21,7 +22,7 @@ type KmerVal = u64;
 /// The start position of a minimizer.
 type Pos = usize;
 
-#[derive(Clone, Copy, MemSize)]
+#[derive(Clone, Copy, MemSize, Debug)]
 pub struct MinimizerParams {
     /// The kmer/minimizer size.
     pub k: usize,

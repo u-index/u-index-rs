@@ -8,6 +8,7 @@ use crate::{utils::*, QueryStats};
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
 use packed_seq::Seq;
 use packed_seq::*;
+use serde_json::Value;
 use std::cmp::Ordering;
 use sux::traits::SuccUnchecked;
 use tracing::trace;
@@ -130,7 +131,7 @@ impl<SV: SeqVec> SIndex<SV> {
         sindex
     }
 
-    pub fn stats(&self) -> HashMap<&'static str, f32> {
+    pub fn stats(&self) -> HashMap<&'static str, Value> {
         let stats = self.stats.clone();
         let qs = self.query_stats.borrow();
         stats.set("query_too_short", qs.too_short);
