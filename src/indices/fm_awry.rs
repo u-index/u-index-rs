@@ -1,8 +1,10 @@
 use awry::alphabet::SymbolAlphabet;
 use awry::fm_index::{FmBuildArgs, FmIndex};
+use itertools::Itertools;
 use mem_dbg::MemSize;
 use packed_seq::PackedSeq;
-use tracing::info;
+use serde_json::Value;
+use tracing::{info, trace, warn};
 
 use crate::{Index, IndexBuilder};
 
@@ -18,12 +20,12 @@ pub struct FmAwry {
 }
 
 impl IndexBuilder for FmAwryParams {
-    fn build_with_stats(
+    fn try_build_with_stats(
         &self,
         text: Vec<u8>,
-        _width: usize,
-        _stats: &crate::utils::Stats,
-    ) -> Box<dyn Index> {
+        width: usize,
+        stats: &crate::utils::Stats,
+    ) -> Option<Box<dyn Index>> {
         // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
         let unpacked = PackedSeq {
             seq: &text,
@@ -54,7 +56,7 @@ impl IndexBuilder for FmAwryParams {
 
         let fm = FmIndex::new(&build_args).unwrap();
         std::fs::remove_file(path).unwrap();
-        Box::new(FmAwry { fm })
+        Some(Box::new(FmAwry { fm }))
     }
 }
 

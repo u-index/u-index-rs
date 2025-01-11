@@ -5,11 +5,22 @@ use crate::{utils::Stats, MsSequence};
 
 /// A generic index to locate strings.
 /// The index owns the input text.
-pub trait IndexBuilder {
+pub trait IndexBuilder: std::fmt::Debug {
     /// Build an index on the text, and keep track of statistics.
     /// `width` gives the width of each minimizer in bytes.
     /// Effectively, only a suffix array on the `width` byte wide integers is needed.
-    fn build_with_stats(&self, text: Vec<u8>, width: usize, stats: &Stats) -> Box<dyn Index>;
+    fn build_with_stats(&self, text: Vec<u8>, width: usize, stats: &Stats) -> Box<dyn Index> {
+        self.try_build_with_stats(text, width, stats).unwrap()
+    }
+
+    fn try_build_with_stats(
+        &self,
+        text: Vec<u8>,
+        width: usize,
+        stats: &Stats,
+    ) -> Option<Box<dyn Index>> {
+        Some(self.build_with_stats(text, width, stats))
+    }
 
     /// Build an index on the text.
     fn build(&self, text: Vec<u8>, width: usize) -> Box<dyn Index> {
@@ -29,7 +40,7 @@ pub trait Index: MemSize {
 }
 
 /// Sketch a plain sequence to minimizer space.
-pub trait SketcherBuilder {
+pub trait SketcherBuilder: std::fmt::Debug {
     /// Take an input text, find its minimizers, and compress to the target space.
     /// Additionally log statistics to `stats`.
     fn sketch_with_stats(

@@ -94,19 +94,28 @@ t_ranges          {t_ranges:>9} ns/query"
 }
 
 impl UIndex {
-    /// 1. Sketch input to minimizer space.
-    /// 2. Build minimizer space index.
     pub fn build(
-        mut seq: PackedSeqVec,
+        seq: PackedSeqVec,
         sketch_params: &dyn SketcherBuilder,
         index_params: &dyn IndexBuilder,
     ) -> Self {
+        Self::try_build(seq, sketch_params, index_params).expect("Failed to build UIndex")
+    }
+
+    /// 1. Sketch input to minimizer space.
+    /// 2. Build minimizer space index.
+    pub fn try_build(
+        mut seq: PackedSeqVec,
+        sketch_params: &dyn SketcherBuilder,
+        index_params: &dyn IndexBuilder,
+    ) -> Option<Self> {
         *INIT_TRACE;
         let stats = Stats::default();
         let mut timer = Timer::new_stats("Sketch", &stats);
         let (sketcher, ms_seq) = sketch_params.sketch_with_stats(seq.as_slice(), &stats);
         timer.next("Build");
-        let ms_index = index_params.build_with_stats(ms_seq.0, Sketcher::width(&*sketcher), &stats);
+        let ms_index =
+            index_params.try_build_with_stats(ms_seq.0, Sketcher::width(&*sketcher), &stats)?;
         drop(timer);
 
         // Build seq ranges.
@@ -148,7 +157,7 @@ impl UIndex {
         let total_size = sketch_size + index_size + ranges_size;
         uindex.stats.add("total_size_MB", total_size);
         trace!("Total  size:   {total_size:>8.3} MB",);
-        uindex
+        Some(uindex)
     }
 
     pub fn stats(&self) -> HashMap<&'static str, Value> {

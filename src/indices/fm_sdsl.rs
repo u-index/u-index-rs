@@ -4,7 +4,8 @@ use crate::{Index, IndexBuilder};
 use mem_dbg::MemSize;
 use packed_seq::PackedSeq;
 use sdsl_lite_fm::*;
-use tracing::{info, trace};
+use serde_json::Value;
+use tracing::{info, trace, warn};
 
 #[derive(Debug)]
 pub struct FmSdslParams<T: SdslFmIndex<C>, C> {
@@ -47,32 +48,55 @@ impl<T: SdslFmIndex<C> + 'static, C: 'static + Copy> IndexBuilder for FmSdslPara
 where
     FmSdsl<T, C>: Index,
 {
-    fn build_with_stats(
+    fn try_build_with_stats(
         &self,
         mut text: Vec<u8>,
         width: usize,
-        _stats: &crate::utils::Stats,
-    ) -> Box<dyn Index> {
-        info!("Build INT SDSL on length {}", text.len());
+        stats: &crate::utils::Stats,
+    ) -> Option<Box<dyn Index>> {
+        info!("Building INT SDSL on length {}", text.len());
 
         // Convert from big endian to little endian.
         // SDSL has a comment saying that they want big-endian input, but their
         // implementation reads little-endian input. See
         // https://github.com/simongog/sdsl-lite/issues/418
 
+        // If C==u8 and width>1, explicitly check for zero bytes.
+        if std::mem::size_of::<C>() == 1 && width > 1 {
+            if text.iter().find(|x| **x == 0).is_some() {
+                warn!("Input contains a zero byte!");
+                return None;
+            }
+        }
+
+        // If C==u8 and width>1, explicitly check for zero bytes.
+        if std::mem::size_of::<C>() == 8 && width > 4 {
+            warn!("SDSL int-FM index does not like large integers.");
+            return None;
+        }
+
+        // Check for zero values.
+        let mut has_zero = false;
+        let zero = &[0; 8][..width];
         text.chunks_mut(width).for_each(|chunk| {
             chunk.reverse();
+            if chunk == zero {
+                has_zero = true;
+            }
         });
+        if has_zero {
+            return None;
+        }
 
         let path = "/tmp/input";
         std::fs::write(path, text).unwrap();
         trace!("Written to /tmp/input");
         trace!("width: {}", width);
 
-        Box::new(FmSdsl::<T, C> {
+        Some(Box::new(FmSdsl::<T, C> {
             fm: T::new(path, width),
             _phantom_c: PhantomData,
-        })
+        }))
     }
 }
 
