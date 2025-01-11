@@ -44,7 +44,7 @@ impl MinimizerParams {
         let k = self.k;
         let w = self.w();
 
-        // TODO: Use SIMD implementation?
+        // FIXME: Use SIMD implementation?
         minimizers::simd::minimizer::minimizer_scalar_it(seq, k, w)
             .dedup()
             .map(move |pos| {
@@ -54,6 +54,15 @@ impl MinimizerParams {
                     packed_seq::Seq::to_word(&seq.slice(pos..pos + k)) as KmerVal,
                 )
             })
+        // let mut out = vec![];
+        // minimizers::simd::minimizer::minimizers_collect_and_dedup::<false>(seq, k, w, &mut out);
+        // out.into_iter().map(move |pos| {
+        //     let pos = pos as usize;
+        //     (
+        //         pos,
+        //         packed_seq::Seq::to_word(&seq.slice(pos..pos + k)) as KmerVal,
+        //     )
+        // })
     }
 
     fn minimizers_par<'s>(
