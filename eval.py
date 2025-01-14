@@ -56,7 +56,7 @@ df["invert%"] = (df["t_query_invert_pos"] / df["query_time"] * 100).astype(int)
 df["us/q"] = df["query_time"] / Q * 10**6
 df["search/q"] = df["t_query_search"] / Q * 10**6
 df["Total"] = df["Build"] + df["Sketch"]
-print(df.columns)
+# print(df.columns)
 
 # fmt:off
 cols = [
@@ -72,39 +72,70 @@ cols = [
     'mism/q',
 ]
 
-df['kl'] = 'k=' + df['k'].astype(str) + ' l=' + df['l'].astype(str)
-def params(row):
-    if row['store_ms'] == -1:
-        return f"{row['index']} R:{row['remap']}"
+def kl(row):
+    if row.k==-1:
+        return 'Plain text index'
     else:
-        return f"{row['index']} R:{row['remap']} MS:{row['store_ms']}"
+        return f"U-index (k,l) = ({row.k}, {row.l})"
+df['kl'] = df.apply(kl, axis=1)
+
+def params(row):
+    idx = row['index']
+    if row['index'] == 'SIndex':
+        return idx
+    r = '' if row['remap'] == 1 else ' -H'
+    ms = '' if row['store_ms'] == 1 else ' -S'
+    if row['store_ms'] == -1:
+        return f"{idx}{r}"
+    else:
+        return f"{idx}{r}{ms}"
 df['params'] = df.apply(params, axis=1)
 
-df = df.groupby(['index', 'store_ms', 'remap', 'k']).first().reset_index()
-df.sort_values(by=['index', 'store_ms', 'remap', 'k'], inplace=True)
+order = [
+    'libsais',
+    'libsais -H',
+    'libsais -S',
+    'libsais -H -S',
+    'SDSL FM',
+    'AWRY',
+    'AWRY -H',
+    'SIndex',
+]
+df['order'] = df['params'].apply(lambda x: order.index(x))
+
+df = df.groupby(['order', 'k']).first().reset_index()
+df.sort_values(by=['order', 'k'], inplace=True)
 
 dfc = df[cols]
 
 # print(dfc)
-print(tabulate.tabulate(dfc, headers=dfc.columns, tablefmt="orgtbl", floatfmt=".1f"))
-print('Seq size: ', df['seq_sz'].unique())
-print('Matches', df['query_matches'].unique())
-print('#minimizers', df[['sketch_k', 'sketch_l', 'num_minimizers']].drop_duplicates().dropna())
+# print(tabulate.tabulate(dfc, headers=dfc.columns, tablefmt="orgtbl", floatfmt=".1f"))
+# print('Seq size: ', df['seq_sz'].unique())
+# print('Matches', df['query_matches'].unique())
+# print('#minimizers', df[['sketch_k', 'sketch_l', 'num_minimizers']].drop_duplicates().dropna())
 
 df['test'] = df['total_sz'] / 2
 
 # 3x3 grid of figures
-fig, axs = plt.subplots(3, 1, figsize=(17, 13))
-g1 = sns.barplot(data=df, hue='kl', y='total_sz', x='params', ax=axs[0])
+fig, axs = plt.subplots(3, 1, figsize=(13, 11))
+g1 = sns.barplot(data=df, hue='kl', y='total_sz', x='params', ax=axs[0], legend=False)
 gx = sns.barplot(data=df, hue='kl', y='sketch_sz', x='params', ax=axs[0], alpha=0.3, color='black', legend=False)
-g2 = sns.barplot(data=df, hue='kl', y='Total', x='params', ax=axs[1])
+g2 = sns.barplot(data=df, hue='kl', y='Total', x='params', ax=axs[1], legend=False)
 gy = sns.barplot(data=df, hue='kl', y='Sketch', x='params', ax=axs[1], alpha=0.3, color='black', legend=False)
 g3 = sns.barplot(data=df, hue='kl', y='us/q', x='params', ax=axs[2])
 gz = sns.barplot(data=df, hue='kl', y='search/q', x='params', ax=axs[2], alpha=0.3, color='black', legend=False)
 # g4 = sns.barplot(data=df, hue='kl', y='int_width', x='params', ax=axs[3])
 
+legend = g3.legend(loc='lower center', bbox_to_anchor=(.5,-0.30), ncol=5, title='', frameon=False)
+
+# Add one black box to the legend
+g1.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Size of minimizer positions and remap'], loc='upper right')
+g2.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time sketching the input'], loc='upper right')
+g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time spent in inner LOCATE'])
+fig.add_artist(legend)
+
 gx.set_ylim(2**1, 2**11)
-gy.set_ylim(2**-3, 2**7)
+gy.set_ylim(2**-2, 2**7)
 gz.set_ylim(2**0, 2**16)
 g1.set_yscale("log", base=2)
 g2.set_yscale("log", base=2)
@@ -127,12 +158,13 @@ g3.grid(axis='y', linewidth=0.2, which='minor')
 
 g1.set_xlabel('')
 g2.set_xlabel('')
-g3.set_xlabel('Index (R: remap, MS: store minimizer seq)')
+g3.set_xlabel('')
+# g3.set_xlabel('Index.   -H: skip remap, -S: implicit minimizer seq')
 g1.set_ylabel('Size (MB)')
 g2.set_ylabel('Build (s)')
 g3.set_ylabel('Query (us)')
 
 
-# fig.savefig(f"plot.svg", bbox_inches="tight")
-fig.savefig(f"plot.png", bbox_inches="tight", dpi=400)
+fig.savefig(f"plot.svg", bbox_inches="tight")
+# fig.savefig(f"plot.png", bbox_inches="tight", dpi=400)
 # plt.show()
