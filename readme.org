@@ -1,0 +1,15 @@
+* U-index
+
+** Install
+1. Clone this repo into eg =~/u-index-rs=.
+2. Also clone =sdsl-lite-fm= into a sibling dir =~/sdsl-lite-fm=
+3. Follow the instructions in the =sdsl-lite-fm= to build that library.
+4. Now do =cargo build -r= in the =u-index-rs= dir. That should work.
+** Run
+Experiments are run from the =u-index-rs= dir using =cargo run -r --example
+bench=. This writes =./stats.json=.
+That can be plotted using =./eval.py=.
+
+Input data is =./human-genome.fa=, which should be (a symlink to) a (human)
+genome. I use =chm13v2.0.fa=. Note that =examples/bench.rs= by default only
+reads chromosome 1, or more generally the first sequence in the fasta file.
