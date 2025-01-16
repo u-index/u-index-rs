@@ -16,7 +16,7 @@ pub struct LibSaisSa {
 
 impl IndexBuilder for LibSaisSa {
     fn build_with_stats(&self, mut ms_seq: Vec<u8>, width: usize, stats: &Stats) -> Box<dyn Index> {
-        stats.set_val("index", Value::String("libsais".to_string()));
+        stats.set_val("index", Value::String("SA".to_string()));
         stats.set("index_width", width);
         stats.set("index_store_ms_seq", self.store_ms_seq as u64);
         stats.set("index_par", self.par as u64);

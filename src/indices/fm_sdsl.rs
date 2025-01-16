@@ -59,10 +59,7 @@ where
         width: usize,
         stats: &crate::utils::Stats,
     ) -> Box<dyn Index> {
-        stats.set_val(
-            "index",
-            Value::String(std::any::type_name::<T>().to_string()),
-        );
+        stats.set_val("index", Value::String("FM-sdsl".to_string()));
         stats.set("index_width", width);
         info!("Building INT SDSL on length {}", text.len());
 

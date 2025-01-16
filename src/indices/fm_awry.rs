@@ -33,7 +33,7 @@ impl IndexBuilder for FmAwryParams {
             len: 4 * text.len(),
         }
         .unpack();
-        stats.set_val("index", Value::String("AWRY".to_string()));
+        stats.set_val("index", Value::String("FM-awry".to_string()));
         stats.set("index_width", width);
         stats.set("index_sa_sampling", self.sa_sampling as u64);
 

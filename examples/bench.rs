@@ -115,8 +115,8 @@ fn main() {
                 u.bench_positive(&queries)
             };
             let mut stats = u.stats();
-            stats.insert("index", Value::String("SIndex".to_string()));
-            stats.insert("index_params", Value::String("SIndex".to_string()));
+            stats.insert("index", Value::String("sparse SA".to_string()));
+            stats.insert("index_params", Value::String("sparse SA".to_string()));
             stats.insert(
                 "sketch_params",
                 Value::String(format!("SIndex {{ k: {k}, l: {l} }}")),
