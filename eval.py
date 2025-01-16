@@ -8,6 +8,9 @@ from matplotlib.ticker import LogLocator
 from matplotlib.colors import to_rgba
 import re
 
+plt.style.use('ggplot')
+plt.rcParams['axes.facecolor'] = '#f7f7f7'
+
 # Limit matplot lib print precision
 pd.set_option("display.precision", 2)
 pd.set_option("display.float_format", "{:0.2f}".format)
@@ -30,18 +33,18 @@ df.loc[df.k == 128, "k"] = 15
 df.loc[df.k == 256, "k"] = 28
 
 # Remap=None becomes Remap=0 and Remap=1
-# (but not for SIndex)
-dfr = df[(df.remap == -1) & (df["index"] != "SIndex")]
+# (but not for sparse SA)
+dfr = df[(df.remap == -1) & (df["index"] != "sparse SA")]
 dfr["remap"] = 0
 df = pd.concat([df, dfr])
 df.loc[df.remap == -1, "remap"] = 1
 
-# Squash two SDSL FM indices together
-df.loc[df["index"] == "sdsl_lite_fm::FmIndexByte32Ptr", "index"] = "SDSL FM"
-df.loc[df["index"] == "sdsl_lite_fm::FmIndexInt32Ptr", "index"] = "SDSL FM"
+# Squash two FM-sdsl indices together
+df.loc[df["index"] == "sdsl_lite_fm::FmIndexByte32Ptr", "index"] = "FM-sdsl"
+df.loc[df["index"] == "sdsl_lite_fm::FmIndexInt32Ptr", "index"] = "FM-sdsl"
 
 # Drop SDSL without remap
-df = df[~((df["index"] == "SDSL FM") & (df["remap"] == 0))]
+df = df[~((df["index"] == "FM-sdsl") & (df["remap"] == 0))]
 
 
 df["l"] = df["sketch_l"].fillna(-1).astype(int)
@@ -76,12 +79,12 @@ def kl(row):
     if row.k==-1:
         return 'Plain text index'
     else:
-        return f"U-index (k,l) = ({row.k}, {row.l})"
+        return f"U-Index (k,$\ell$) = ({row.k}, {row.l})"
 df['kl'] = df.apply(kl, axis=1)
 
 def params(row):
     idx = row['index']
-    if row['index'] == 'SIndex':
+    if row['index'] == 'sparse SA':
         return idx
     r = '' if row['remap'] == 1 else ' -H'
     ms = '' if row['store_ms'] == 1 else ' -S'
@@ -92,14 +95,14 @@ def params(row):
 df['params'] = df.apply(params, axis=1)
 
 order = [
-    'libsais',
-    'libsais -H',
-    'libsais -S',
-    'libsais -H -S',
-    'SDSL FM',
-    'AWRY',
-    'AWRY -H',
-    'SIndex',
+    'SA',
+    'SA -H',
+    'SA -S',
+    'SA -H -S',
+    'FM-sdsl',
+    'FM-awry',
+    'FM-awry -H',
+    'sparse SA',
 ]
 df['order'] = df['params'].apply(lambda x: order.index(x))
 
@@ -131,7 +134,7 @@ legend = g3.legend(loc='lower center', bbox_to_anchor=(.5,-0.30), ncol=5, title=
 # Add one black box to the legend
 g1.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Size of minimizer positions and remap'], loc='upper right')
 g2.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time sketching the input'], loc='upper right')
-g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time spent in inner LOCATE'])
+g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time spent in inner Locate'])
 fig.add_artist(legend)
 
 gx.set_ylim(2**1, 2**11)
@@ -164,7 +167,12 @@ g1.set_ylabel('Size (MB)')
 g2.set_ylabel('Build (s)')
 g3.set_ylabel('Query (us)')
 
-
-fig.savefig(f"plot.svg", bbox_inches="tight")
+fig.savefig(f"plot.pdf", bbox_inches="tight")
+# fig.savefig(f"plot.svg", bbox_inches="tight")
 # fig.savefig(f"plot.png", bbox_inches="tight", dpi=400)
 # plt.show()
+
+# fig.tight_layout()
+
+# Save the plot as a PDF
+# fig.savefig("plot.pdf")
