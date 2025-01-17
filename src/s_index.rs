@@ -1,6 +1,7 @@
 //! This file is a crime; mostly copied from `u_index.rs` and `suffix_array.rs`.
 //! But this uses slightly different types and modifying all the traits was pain.
 
+use std::ops::Range;
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::utils::Stats;
@@ -70,9 +71,14 @@ t_ranges          {t_ranges:>9} ns/query"
 }
 
 impl<SV: SeqVec> SIndex<SV> {
+    pub fn build(seq: SV, k: usize, l: usize) -> Self {
+        let ranges = vec![0..seq.len()];
+        Self::build_with_ranges(seq, &ranges, k, l)
+    }
+
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
-    pub fn build(mut seq: SV, k: usize, l: usize) -> Self {
+    pub fn build_with_ranges(seq: SV, ranges: &[Range<usize>], k: usize, l: usize) -> Self {
         *INIT_TRACE;
         let stats = Stats::default();
         let mut timer = Timer::new_stats("Sketch", &stats);
@@ -94,12 +100,12 @@ impl<SV: SeqVec> SIndex<SV> {
 
         // Build seq ranges.
         let mut ef_ranges = sux::dict::elias_fano::EliasFanoBuilder::new(
-            2 * seq.ranges().len(),
-            seq.ranges().last().unwrap().1,
+            2 * ranges.len(),
+            ranges.last().unwrap().end,
         );
-        for (start, end) in std::mem::take(seq.ranges()) {
-            ef_ranges.push(start);
-            ef_ranges.push(end);
+        for r in ranges {
+            ef_ranges.push(r.start);
+            ef_ranges.push(r.end);
         }
 
         let sindex = Self {

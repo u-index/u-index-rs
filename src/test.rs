@@ -279,7 +279,7 @@ fn test_s_index() {
 #[test]
 #[ignore = "needs human-genome.fa"]
 fn human_genome() {
-    let seq: PackedSeqVec = read_chromosomes(1);
+    let (seq, ranges) = read_chromosomes::<PackedSeqVec>(1);
 
     let ql = 256;
     let compress = true;
@@ -299,7 +299,7 @@ fn human_genome() {
                     store_ms_seq: store_seq,
                     compress,
                 };
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+                let uindex = UIndex::build_with_ranges(seq.clone(), &ranges, sketcher, ms_index);
                 timer.next("Query");
                 for _ in 0..100000 {
                     let pos = rand::random::<usize>() % (seq.len() - ql);

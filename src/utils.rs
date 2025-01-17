@@ -1,6 +1,7 @@
 use std::{
     cell::Cell,
     collections::HashMap,
+    ops::Range,
     sync::{LazyLock, Mutex},
 };
 
@@ -123,16 +124,17 @@ impl Stats {
     }
 }
 
-pub fn read_chromosomes<SV: SeqVec>(cnt_max: usize) -> SV {
+pub fn read_chromosomes<SV: SeqVec>(cnt_max: usize) -> (SV, Vec<Range<usize>>) {
     *INIT_TRACE;
     let _timer = Timer::new("Reading");
     let Ok(mut reader) = needletail::parse_fastx_file("human-genome.fa") else {
         panic!("Did not find human-genome.fa. Add/symlink it to test runtime on it.");
     };
     let mut seq = SV::default();
+    let mut ranges = vec![];
     let mut cnt = 0;
     while let Some(r) = reader.next() {
-        seq.push_ascii(&r.unwrap().seq());
+        ranges.push(seq.push_ascii(&r.unwrap().seq()));
         cnt += 1;
         if cnt == cnt_max {
             break;
@@ -143,9 +145,9 @@ pub fn read_chromosomes<SV: SeqVec>(cnt_max: usize) -> SV {
         seq.len() / 1000000,
         seq.mem_size(SizeFlags::default()) / 1000000
     );
-    seq
+    (seq, ranges)
 }
 
-pub fn read_human_genome<SV: SeqVec>() -> SV {
+pub fn read_human_genome<SV: SeqVec>() -> (SV, Vec<Range<usize>>) {
     read_chromosomes(usize::MAX)
 }

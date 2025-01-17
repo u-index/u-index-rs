@@ -1,7 +1,8 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, ops::Range};
 
 use mem_dbg::{MemDbg, MemSize, SizeFlags};
 use packed_seq::*;
+use serde_json::Value;
 use sux::traits::SuccUnchecked;
 use tracing::trace;
 
@@ -99,13 +100,25 @@ impl UIndex {
         sketch_params: &dyn SketcherBuilder,
         index_params: &dyn IndexBuilder,
     ) -> Self {
-        Self::try_build(seq, sketch_params, index_params).expect("Failed to build UIndex")
+        let ranges = [0..seq.len()];
+        Self::build_with_ranges(seq, &ranges, sketch_params, index_params)
+    }
+
+    pub fn build_with_ranges(
+        seq: PackedSeqVec,
+        ranges: &[Range<usize>],
+        sketch_params: &dyn SketcherBuilder,
+        index_params: &dyn IndexBuilder,
+    ) -> Self {
+        Self::try_build_with_ranges(seq, ranges, sketch_params, index_params)
+            .expect("Failed to build UIndex")
     }
 
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
-    pub fn try_build(
-        mut seq: PackedSeqVec,
+    pub fn try_build_with_ranges(
+        seq: PackedSeqVec,
+        ranges: &[Range<usize>],
         sketch_params: &dyn SketcherBuilder,
         index_params: &dyn IndexBuilder,
     ) -> Option<Self> {
@@ -120,12 +133,12 @@ impl UIndex {
 
         // Build seq ranges.
         let mut ef_ranges = sux::dict::elias_fano::EliasFanoBuilder::new(
-            2 * seq.ranges().len(),
-            seq.ranges().last().unwrap().1,
+            2 * ranges.len(),
+            ranges.last().unwrap().end,
         );
-        for (start, end) in std::mem::take(seq.ranges()) {
-            ef_ranges.push(start);
-            ef_ranges.push(end);
+        for r in ranges {
+            ef_ranges.push(r.start);
+            ef_ranges.push(r.end);
         }
 
         let uindex = Self {

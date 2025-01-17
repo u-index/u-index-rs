@@ -17,7 +17,7 @@ fn main() {
     let query_length = 512;
     let num_queries = 10000;
 
-    let seq: PackedSeqVec = read_chromosomes(1);
+    let (seq, ranges) = read_chromosomes::<PackedSeqVec>(1);
     let queries = gen_query_positions(seq.as_slice(), query_length, num_queries);
 
     for (k, l) in [
@@ -90,7 +90,7 @@ fn main() {
 
         for (p, s) in params {
             tracing::info!("Building UIndex with params {:?} {:?}", &*s, &*p);
-            if let Some(u) = UIndex::try_build(seq.clone(), &*s, &*p) {
+            if let Some(u) = UIndex::try_build_with_ranges(seq.clone(), &ranges, &*s, &*p) {
                 let query_time = {
                     let _t = Timer::new("bench_positive");
                     u.bench_positive(&queries)
