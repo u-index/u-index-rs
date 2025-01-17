@@ -58,7 +58,7 @@ where
         mut text: Vec<u8>,
         width: usize,
         stats: &crate::utils::Stats,
-    ) -> Box<dyn Index> {
+    ) -> Option<Box<dyn Index>> {
         stats.set_val("index", Value::String("FM-sdsl".to_string()));
         stats.set("index_width", width);
         info!("Building INT SDSL on length {}", text.len());
