@@ -6,7 +6,7 @@ use mem_dbg::MemSize;
 use packed_seq::{Seq, SeqVec};
 use serde_json::Value;
 use sux::traits::IndexedSeq;
-use tracing::trace;
+use tracing::{info, trace};
 
 use crate::{
     utils::{Stats, Timer},
@@ -113,7 +113,7 @@ impl<SV: SeqVec> SketcherBuilder<SV> for MinimizerParams {
         stats.set("sequence_length", seq.len());
         let mut timer = Timer::new_stats("computing_minimizers", stats);
         let (min_poss, min_val): (Vec<Pos>, Vec<KmerVal>) = self.minimizers_par(seq).unzip();
-        trace!("Num minimizers: {}", min_poss.len());
+        info!("Num minimizers: {:>9}", min_poss.len());
         stats.set("num_minimizers", min_poss.len());
         let (kmer_map, kmer_width) = if self.remap {
             timer.next("Building remap");
@@ -142,7 +142,7 @@ impl<SV: SeqVec> SketcherBuilder<SV> for MinimizerParams {
             stats.set("kmer_width_bits", 2 * self.k);
             (HashMap::new(), self.k.div_ceil(4))
         };
-        trace!("kmer_width: {kmer_width} bytes");
+        info!("kmer_width: {kmer_width} bytes");
         stats.set("kmer_width", kmer_width);
         timer.next("Building EF");
         let min_poss = if self.cacheline_ef {
