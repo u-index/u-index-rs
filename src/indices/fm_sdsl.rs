@@ -85,14 +85,17 @@ where
 
         // Check for zero values.
         let mut has_zero = false;
+        let mut idx = 0;
         let zero = &[0; 8][..width];
-        text.chunks_mut(width).for_each(|chunk| {
+        text.chunks_mut(width).enumerate().for_each(|(i, chunk)| {
             chunk.reverse();
             if chunk == zero {
                 has_zero = true;
+                idx = i;
             }
         });
         if has_zero {
+            warn!("Input has a zero value at value {idx} out of {}, for text length {} with value-width {width}!", text.len()/width, text.len());
             return None;
         }
 
