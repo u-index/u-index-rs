@@ -1,4 +1,6 @@
-use packed_seq::{PackedSeqVec, SeqVec};
+use std::{any::type_name, collections::HashMap, ops::Range};
+
+use packed_seq::{AsciiSeqVec, PackedSeqVec, SeqVec};
 use sdsl_lite_fm::*;
 use serde_json::{Number, Value};
 use uindex::{
@@ -6,7 +8,7 @@ use uindex::{
     indices::{DivSufSortSa, FmAwryParams, FmSdslParams, LibSaisSa},
     s_index::SIndex,
     sketchers::{IdentityParams, MinimizerParams},
-    utils::{read_chromosomes, Timer},
+    utils::{read_chromosomes, Timer, INIT_TRACE},
     IndexBuilder, SketcherBuilder, UIndex,
 };
 
@@ -14,15 +16,34 @@ fn main() {
     color_backtrace::install();
     *INIT_TRACE;
 
-    let mut all_stats = vec![];
-    let query_length = 512;
+    let query_length = 64;
     let num_queries = 10000;
+    // let (seq, _ranges) = read_chromosomes::<PackedSeqVec>(1);
+    let seq = &std::fs::read("english.200MB").unwrap();
     let queries = gen_query_positions(seq.len(), query_length, num_queries);
 
-    let (seq, ranges) = read_chromosomes::<PackedSeqVec>(1);
+    let mut all_stats = vec![];
+    run::<PackedSeqVec>(&mut all_stats, seq, query_length, &queries);
+    run::<AsciiSeqVec>(&mut all_stats, seq, query_length, &queries);
+    run::<Vec<u8>>(&mut all_stats, seq, query_length, &queries);
+
+    // Write all_stats.
+    let stats_string = serde_json::to_string(&all_stats).unwrap();
+    std::fs::write("stats.json", stats_string).unwrap();
+}
+
+fn run<SV: SeqVec>(
+    all_stats: &mut Vec<HashMap<&str, Value>>,
+    seq: &[u8],
+    query_length: usize,
+    queries: &Vec<(usize, usize)>,
+) {
+    tracing::warn!("{}", type_name::<SV>());
+    let ranges = vec![0..seq.len()];
+    let seq = SV::from_ascii(seq);
 
     for (k, l) in [
-        (4, 32),
+        (4, 16),
         // (8, 64), (15, 128), (28, 256)
     ] {
         // SKETCHERS
@@ -73,7 +94,7 @@ fn main() {
         let sdsl_int_32 = &FmSdslParams::<FmIndexInt32Ptr, _>::new();
         let sdsl_int_64 = &FmSdslParams::<FmIndexInt64Ptr, _>::new();
 
-        let params: Vec<(&dyn IndexBuilder, &dyn SketcherBuilder)> = vec![
+        let params: Vec<(&dyn IndexBuilder<SV>, &dyn SketcherBuilder<SV>)> = vec![
             // (sais_ms, id),
             (sais_ms, min_no_remap),
             // (sais_ms, min_remap),
@@ -90,8 +111,8 @@ fn main() {
         ];
 
         for (p, s) in params {
-            if let Some(u) = UIndex::try_build_with_ranges(seq.clone(), &ranges, &*s, &*p) {
             tracing::warn!("Building UIndex with params {:?} {:?}", &*s, &*p);
+            if let Some(u) = UIndex::<SV>::try_build_with_ranges(seq.clone(), &ranges, &*s, &*p) {
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
                     u.bench_positive(&queries)
@@ -158,8 +179,4 @@ fn main() {
             all_stats.push(stats);
         }
     }
-
-    // Write all_stats.
-    let stats_string = serde_json::to_string(&all_stats).unwrap();
-    std::fs::write("stats.json", stats_string).unwrap();
 }
