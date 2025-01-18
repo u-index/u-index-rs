@@ -4,7 +4,7 @@ use mem_dbg::{MemDbg, MemSize, SizeFlags};
 use packed_seq::*;
 use serde_json::Value;
 use sux::traits::SuccUnchecked;
-use tracing::trace;
+use tracing::{info, trace};
 
 use crate::{traits::*, utils::*};
 
@@ -75,7 +75,9 @@ impl Drop for UIndex {
         t_check /= queries;
         t_ranges /= queries;
 
-        tracing::info!(
+        tracing::info!("mismatches:  {mismatches:>9}");
+        tracing::info!("matches:     {matches:>9}");
+        tracing::trace!(
             "QUERY STATS:
 queries           {queries:>9}
 too short         {too_short:>9}
@@ -151,17 +153,17 @@ impl UIndex {
         };
         let seq_size = uindex.seq.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("seq_size_MB", seq_size);
-        trace!("seq    size:   {seq_size:>8.3} MB",);
+        info!("seq    size:    {seq_size:>8.3} MB",);
 
         let sketch_size = uindex.sketcher.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("sketch_size_MB", sketch_size);
-        trace!("Sketch size:   {sketch_size:>8.3} MB",);
+        info!("Sketch size:    {sketch_size:>8.3} MB",);
 
         // uindex.ms_index.log_sizes(&uindex.stats);
 
         let index_size = uindex.ms_index.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("index_size_MB", index_size);
-        trace!("Index size:   {index_size:>8.3} MB",);
+        info!("Index size:     {index_size:>8.3} MB",);
 
         let ranges_size = uindex.ranges.mem_size(SizeFlags::default()) as f32 / 1000000.;
         uindex.stats.add("ranges_size_MB", ranges_size);
@@ -169,7 +171,7 @@ impl UIndex {
 
         let total_size = sketch_size + index_size + ranges_size;
         uindex.stats.add("total_size_MB", total_size);
-        trace!("Total  size:   {total_size:>8.3} MB",);
+        info!("Total  size:    {total_size:>8.3} MB",);
         Some(uindex)
     }
 

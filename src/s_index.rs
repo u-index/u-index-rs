@@ -12,7 +12,7 @@ use packed_seq::*;
 use serde_json::Value;
 use std::cmp::Ordering;
 use sux::traits::SuccUnchecked;
-use tracing::trace;
+use tracing::{info, trace};
 
 #[derive(MemSize)]
 pub struct SIndex<SV: SeqVec> {
@@ -51,7 +51,9 @@ impl<SV: SeqVec> Drop for SIndex<SV> {
         t_check /= queries;
         t_ranges /= queries;
 
-        tracing::info!(
+        tracing::info!("mismatches:  {mismatches:>9}");
+        tracing::info!("matches:     {matches:>9}");
+        tracing::trace!(
             "QUERY STATS:
 queries           {queries:>9}
 too short         {too_short:>9}
@@ -81,16 +83,12 @@ impl<SV: SeqVec> SIndex<SV> {
     pub fn build_with_ranges(seq: SV, ranges: &[Range<usize>], k: usize, l: usize) -> Self {
         *INIT_TRACE;
         let stats = Stats::default();
-        let mut timer = Timer::new_stats("Sketch", &stats);
+        let mut timer = Timer::new_stats("Sketch", &stats).info();
 
         let w = l - k + 1;
         let mut minimizer_positions = vec![];
         simd_minimizers::minimizer_positions(seq.as_slice(), k, w, &mut minimizer_positions);
         timer.next("Build");
-        eprintln!("Num minimizers: {}", minimizer_positions.len());
-        eprintln!("Last minimizer: {:?}", minimizer_positions.last());
-        eprintln!("Seq len: {}", seq.len());
-        // TODO
         let ssa = SparseSuffixArray::new(seq.as_slice(), minimizer_positions);
         drop(timer);
 
@@ -115,13 +113,13 @@ impl<SV: SeqVec> SIndex<SV> {
         };
         let seq_size = sindex.seq.mem_size(SizeFlags::default()) as f32 / 1000000.;
         sindex.stats.add("seq_size_MB", seq_size);
-        trace!("seq    size:   {seq_size:>8.3} MB",);
+        info!("seq    size:    {seq_size:>8.3} MB",);
 
         sindex.ssa.log_sizes(&sindex.stats);
 
         let index_size = sindex.ssa.mem_size(SizeFlags::default()) as f32 / 1000000.;
         sindex.stats.add("index_size_MB", index_size);
-        trace!("Index size:   {index_size:>8.3} MB",);
+        info!("Index size:     {index_size:>8.3} MB",);
 
         let ranges_size = sindex.ranges.mem_size(SizeFlags::default()) as f32 / 1000000.;
         sindex.stats.add("ranges_size_MB", ranges_size);
@@ -129,7 +127,7 @@ impl<SV: SeqVec> SIndex<SV> {
 
         let total_size = index_size + ranges_size;
         sindex.stats.add("total_size_MB", total_size);
-        trace!("Total  size:   {total_size:>8.3} MB",);
+        info!("Total  size:    {total_size:>8.3} MB",);
         sindex
     }
 

@@ -12,6 +12,7 @@ use uindex::{
 
 fn main() {
     color_backtrace::install();
+    *INIT_TRACE;
 
     let mut all_stats = vec![];
     let query_length = 512;
@@ -89,10 +90,10 @@ fn main() {
         ];
 
         for (p, s) in params {
-            tracing::info!("Building UIndex with params {:?} {:?}", &*s, &*p);
             if let Some(u) = UIndex::try_build_with_ranges(seq.clone(), &ranges, &*s, &*p) {
+            tracing::warn!("Building UIndex with params {:?} {:?}", &*s, &*p);
                 let query_time = {
-                    let _t = Timer::new("bench_positive");
+                    let _t = Timer::new("bench_positive").info();
                     u.bench_positive(&queries)
                 };
                 let mut stats = u.stats();
@@ -108,10 +109,13 @@ fn main() {
         }
 
         // SIndex without sketching
-        {
+
+        if false {
+            tracing::warn!("Building plain-text SIndex");
             let u = SIndex::build(seq.clone(), 1, 1);
+
             let query_time = {
-                let _t = Timer::new("bench_positive");
+                let _t = Timer::new("bench_positive").info();
                 u.bench_positive(&queries)
             };
             let mut stats = u.stats();
@@ -131,9 +135,10 @@ fn main() {
             all_stats.push(stats);
         }
         {
+            tracing::warn!("Building minizer-space SIndex");
             let u = SIndex::build(seq.clone(), k, l);
             let query_time = {
-                let _t = Timer::new("bench_positive");
+                let _t = Timer::new("bench_positive").info();
                 u.bench_positive(&queries)
             };
             let mut stats = u.stats();

@@ -8,7 +8,7 @@ use std::{
 use mem_dbg::{MemSize, SizeFlags};
 use packed_seq::SeqVec;
 use serde_json::{value::Value, Number};
-use tracing::trace;
+use tracing::{info, trace};
 
 thread_local! {
     static TIMER_DEPTH: Cell<usize> = Cell::new(0);
@@ -19,6 +19,7 @@ pub struct Timer<'s> {
     stats: Option<&'s Stats>,
     start: std::time::Instant,
     depth: usize,
+    info: bool,
 }
 
 impl<'s> Timer<'s> {
@@ -30,6 +31,7 @@ impl<'s> Timer<'s> {
             stats: None,
             start: std::time::Instant::now(),
             depth,
+            info: false,
         }
     }
     pub fn new_stats(name: &'static str, stats: &'s Stats) -> Self {
@@ -40,7 +42,12 @@ impl<'s> Timer<'s> {
             stats: Some(stats),
             start: std::time::Instant::now(),
             depth,
+            info: false,
         }
+    }
+    pub fn info(mut self) -> Self {
+        self.info = true;
+        self
     }
     pub fn next(&mut self, name: &'static str) {
         self.log();
@@ -57,7 +64,11 @@ impl<'s> Timer<'s> {
         for _ in 0..self.depth {
             prefix.push_str(" ");
         }
-        trace!("{prefix} {:<30}: {:.3?}", self.name, elapsed,);
+        if self.info {
+            info!("{prefix} {:<30}: {:.3?}", self.name, elapsed,);
+        } else {
+            trace!("{prefix} {:<30}: {:.3?}", self.name, elapsed,);
+        }
     }
 }
 
