@@ -1,4 +1,5 @@
-use std::{any::type_name, collections::HashMap, ops::Range};
+#![allow(unused)]
+use std::{any::type_name, collections::HashMap};
 
 use packed_seq::{AsciiSeqVec, PackedSeqVec, SeqVec};
 use sdsl_lite_fm::*;
