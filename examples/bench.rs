@@ -16,9 +16,9 @@ fn main() {
     let mut all_stats = vec![];
     let query_length = 512;
     let num_queries = 10000;
+    let queries = gen_query_positions(seq.len(), query_length, num_queries);
 
     let (seq, ranges) = read_chromosomes::<PackedSeqVec>(1);
-    let queries = gen_query_positions(seq.as_slice(), query_length, num_queries);
 
     for (k, l) in [
         (4, 32),

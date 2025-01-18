@@ -6,10 +6,10 @@ use s_index::SIndex;
 use tracing::trace;
 
 /// Take `count` random substrings with length `len` and time querying them.
-pub fn gen_query_positions<'i>(seq: impl Seq<'i>, len: usize, count: usize) -> Vec<(usize, usize)> {
+pub fn gen_query_positions<'i>(n: usize, len: usize, count: usize) -> Vec<(usize, usize)> {
     (0..count)
         .map(|_| {
-            let pos = rand::random::<usize>() % (seq.len() - len);
+            let pos = rand::random::<usize>() % (n - len);
             (pos, pos + len)
         })
         .collect::<Vec<_>>()
