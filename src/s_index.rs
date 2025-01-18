@@ -171,8 +171,7 @@ impl<SV: SeqVec> SIndex<SV> {
             return None;
         }
 
-        let offset =
-            simd_minimizers::private::minimizers::minimizer(pattern.slice(0..self.l), self.k);
+        let offset = simd_minimizers::one_minimizer(pattern.slice(0..self.l), self.k);
         assert!(offset < self.l);
 
         let t2 = std::time::Instant::now();
