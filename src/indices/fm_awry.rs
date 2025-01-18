@@ -2,7 +2,7 @@ use awry::alphabet::SymbolAlphabet;
 use awry::fm_index::{FmBuildArgs, FmIndex};
 use itertools::Itertools;
 use mem_dbg::MemSize;
-use packed_seq::PackedSeq;
+use packed_seq::{PackedSeq, SeqVec};
 use serde_json::Value;
 use tracing::{info, trace, warn};
 
@@ -19,20 +19,13 @@ pub struct FmAwry {
     explode: bool,
 }
 
-impl IndexBuilder for FmAwryParams {
+impl<SV: SeqVec> IndexBuilder<SV> for FmAwryParams {
     fn try_build_with_stats(
         &self,
         text: Vec<u8>,
         width: usize,
         stats: &crate::utils::Stats,
-    ) -> Option<Box<dyn Index>> {
-        // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
-        let unpacked = PackedSeq {
-            seq: &text,
-            offset: 0,
-            len: 4 * text.len(),
-        }
-        .unpack();
+    ) -> Option<Box<dyn Index<SV>>> {
         stats.set_val("index", Value::String("FM-awry".to_string()));
         stats.set("index_width", width);
         stats.set("index_sa_sampling", self.sa_sampling as u64);
@@ -50,7 +43,7 @@ impl IndexBuilder for FmAwryParams {
         if !explode {
             fasta.extend(text.iter().copied().map(|x| packed_seq::unpack(x)));
         } else {
-            // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
+            // AWRY does not support generic u8/ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
             let unpacked = PackedSeq {
                 seq: &text,
                 offset: 0,
@@ -84,12 +77,12 @@ impl IndexBuilder for FmAwryParams {
     }
 }
 
-impl Index for FmAwry {
+impl<SV: SeqVec> Index<SV> for FmAwry {
     fn query(
         &self,
         pattern: &[u8],
-        _seq: PackedSeq,
-        _sketcher: &dyn crate::Sketcher,
+        _seq: SV::Seq<'_>,
+        _sketcher: &dyn crate::Sketcher<SV>,
     ) -> Box<dyn Iterator<Item = usize>> {
         // AWRY does not support generic ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
         let unpacked = unsafe {

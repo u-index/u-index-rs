@@ -1,7 +1,7 @@
 use std::hint::black_box;
 
 use super::*;
-use packed_seq::{Seq, SeqVec};
+use packed_seq::SeqVec;
 use s_index::SIndex;
 use tracing::trace;
 
@@ -15,7 +15,7 @@ pub fn gen_query_positions<'i>(n: usize, len: usize, count: usize) -> Vec<(usize
         .collect::<Vec<_>>()
 }
 
-impl UIndex {
+impl<SV: SeqVec + 'static> UIndex<SV> {
     /// Take `count` random substrings with length `len` and time querying them.
     pub fn bench_positive(&self, queries: &[(usize, usize)]) -> f64 {
         let start = std::time::Instant::now();

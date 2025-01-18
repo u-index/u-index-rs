@@ -1,4 +1,4 @@
-use packed_seq::PackedSeq;
+use packed_seq::SeqVec;
 use serde_json::Value;
 
 use super::*;
@@ -16,8 +16,12 @@ pub struct Identity {
     len: usize,
 }
 
-impl SketcherBuilder for IdentityParams {
-    fn sketch_with_stats(&self, seq: PackedSeq, stats: &Stats) -> (Box<dyn Sketcher>, MsSequence) {
+impl<SV: SeqVec> SketcherBuilder<SV> for IdentityParams {
+    fn sketch_with_stats(
+        &self,
+        seq: SV::Seq<'_>,
+        stats: &Stats,
+    ) -> (Box<dyn Sketcher<SV>>, MsSequence) {
         stats.set_val("sketcher", Value::String("identity".to_string()));
         stats.set("sketch_skip_zero", self.skip_zero as u64);
         let seq = seq
@@ -34,7 +38,7 @@ impl SketcherBuilder for IdentityParams {
     }
 }
 
-impl Sketcher for Identity {
+impl<SV: SeqVec> Sketcher<SV> for Identity {
     fn width(&self) -> usize {
         1
     }
@@ -47,7 +51,7 @@ impl Sketcher for Identity {
         self.len
     }
 
-    fn sketch(&self, seq: PackedSeq) -> Result<(MsSequence, usize), SketchError> {
+    fn sketch(&self, seq: SV::Seq<'_>) -> Result<(MsSequence, usize), SketchError> {
         let seq = seq
             .iter_bp()
             .map(|x| x + (if self.params.skip_zero { 1 } else { 0 }))
@@ -63,7 +67,7 @@ impl Sketcher for Identity {
         Some(ms_seq[ms_pos] as usize)
     }
 
-    fn get_ms_minimizer_via_plaintext(&self, seq: PackedSeq, ms_pos: usize) -> Option<usize> {
+    fn get_ms_minimizer_via_plaintext(&self, seq: SV::Seq<'_>, ms_pos: usize) -> Option<usize> {
         Some(seq.get(ms_pos) as usize + (if self.params.skip_zero { 1 } else { 0 }))
     }
 }

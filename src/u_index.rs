@@ -9,10 +9,10 @@ use tracing::{info, trace};
 use crate::{traits::*, utils::*};
 
 #[derive(MemSize)]
-pub struct UIndex {
-    pub(crate) seq: PackedSeqVec,
-    sketcher: Box<dyn Sketcher>,
-    ms_index: Box<dyn Index>,
+pub struct UIndex<SV: SeqVec> {
+    pub(crate) seq: SV,
+    sketcher: Box<dyn Sketcher<SV>>,
+    ms_index: Box<dyn Index<SV>>,
     pub(crate) query_stats: RefCell<QueryStats>,
     stats: Stats,
     ranges: sux::dict::elias_fano::EfDict,
@@ -49,7 +49,7 @@ pub struct QueryStats {
     pub t_ranges: usize,
 }
 
-impl Drop for UIndex {
+impl<SV: SeqVec> Drop for UIndex<SV> {
     fn drop(&mut self) {
         let QueryStats {
             mut queries,
@@ -96,21 +96,21 @@ t_ranges          {t_ranges:>9} ns/query"
     }
 }
 
-impl UIndex {
+impl<SV: SeqVec + 'static> UIndex<SV> {
     pub fn build(
-        seq: PackedSeqVec,
-        sketch_params: &dyn SketcherBuilder,
-        index_params: &dyn IndexBuilder,
+        seq: SV,
+        sketch_params: &dyn SketcherBuilder<SV>,
+        index_params: &dyn IndexBuilder<SV>,
     ) -> Self {
         let ranges = [0..seq.len()];
         Self::build_with_ranges(seq, &ranges, sketch_params, index_params)
     }
 
     pub fn build_with_ranges(
-        seq: PackedSeqVec,
+        seq: SV,
         ranges: &[Range<usize>],
-        sketch_params: &dyn SketcherBuilder,
-        index_params: &dyn IndexBuilder,
+        sketch_params: &dyn SketcherBuilder<SV>,
+        index_params: &dyn IndexBuilder<SV>,
     ) -> Self {
         Self::try_build_with_ranges(seq, ranges, sketch_params, index_params)
             .expect("Failed to build UIndex")
@@ -119,14 +119,14 @@ impl UIndex {
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
     pub fn try_build_with_ranges(
-        seq: PackedSeqVec,
+        seq: SV,
         ranges: &[Range<usize>],
-        sketch_params: &dyn SketcherBuilder,
-        index_params: &dyn IndexBuilder,
+        sketch_params: &dyn SketcherBuilder<SV>,
+        index_params: &dyn IndexBuilder<SV>,
     ) -> Option<Self> {
         *INIT_TRACE;
         let stats = Stats::default();
-        let mut timer = Timer::new_stats("Sketch", &stats);
+        let mut timer = Timer::new_stats("Sketch", &stats).info();
         let (sketcher, ms_seq) = sketch_params.sketch_with_stats(seq.as_slice(), &stats);
         timer.next("Build");
         let ms_index =
@@ -204,7 +204,7 @@ impl UIndex {
     /// When the pattern contains an unknown minimizer, an empty iterator is returned.
     pub fn query<'p>(
         &'p self,
-        pattern: PackedSeq<'p>,
+        pattern: SV::Seq<'p>,
     ) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
         self.query_stats.borrow_mut().queries += 1;
         let t1 = std::time::Instant::now();

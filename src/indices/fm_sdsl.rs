@@ -2,7 +2,7 @@ use std::{any::type_name, marker::PhantomData};
 
 use crate::{Index, IndexBuilder};
 use mem_dbg::MemSize;
-use packed_seq::PackedSeq;
+use packed_seq::SeqVec;
 use sdsl_lite_fm::*;
 use serde_json::Value;
 use tracing::{info, trace, warn};
@@ -49,16 +49,17 @@ impl<T: SdslFmIndex<C>, C> MemSize for FmSdsl<T, C> {
     }
 }
 
-impl<T: SdslFmIndex<C> + 'static, C: 'static + Copy> IndexBuilder for FmSdslParams<T, C>
+impl<T: SdslFmIndex<C> + 'static, C: 'static + Copy, SV: SeqVec> IndexBuilder<SV>
+    for FmSdslParams<T, C>
 where
-    FmSdsl<T, C>: Index,
+    FmSdsl<T, C>: Index<SV>,
 {
     fn try_build_with_stats(
         &self,
         mut text: Vec<u8>,
         width: usize,
         stats: &crate::utils::Stats,
-    ) -> Option<Box<dyn Index>> {
+    ) -> Option<Box<dyn Index<SV>>> {
         stats.set_val("index", Value::String("FM-sdsl".to_string()));
         stats.set("index_width", width);
         info!("Building INT SDSL on length {}", text.len());
@@ -107,12 +108,12 @@ where
     }
 }
 
-impl<T: SdslFmIndex<u64>> Index for FmSdsl<T, u64> {
+impl<T: SdslFmIndex<u64>, SV: SeqVec + 'static> Index<SV> for FmSdsl<T, u64> {
     fn query(
         &self,
         pattern: &[u8],
-        _seq: PackedSeq,
-        sketcher: &dyn crate::Sketcher,
+        _seq: SV::Seq<'_>,
+        sketcher: &dyn crate::Sketcher<SV>,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         // Convert pattern to a [u64].
         let width = sketcher.width();
@@ -134,12 +135,12 @@ impl<T: SdslFmIndex<u64>> Index for FmSdsl<T, u64> {
     }
 }
 
-impl<T: SdslFmIndex<u8>> Index for FmSdsl<T, u8> {
+impl<T: SdslFmIndex<u8>, SV: SeqVec> Index<SV> for FmSdsl<T, u8> {
     fn query(
         &self,
         pattern: &[u8],
-        _seq: PackedSeq,
-        _sketcher: &dyn crate::Sketcher,
+        _seq: SV::Seq<'_>,
+        _sketcher: &dyn crate::Sketcher<SV>,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         let positions = self.fm.locate(&pattern);
         let len = positions.len();

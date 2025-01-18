@@ -1,3 +1,4 @@
+use packed_seq::SeqVec;
 use serde_json::Value;
 use tracing::trace;
 
@@ -14,8 +15,13 @@ pub struct LibSaisSa {
     pub par: bool,
 }
 
-impl IndexBuilder for LibSaisSa {
-    fn build_with_stats(&self, mut ms_seq: Vec<u8>, width: usize, stats: &Stats) -> Box<dyn Index> {
+impl<SV: SeqVec> IndexBuilder<SV> for LibSaisSa {
+    fn build_with_stats(
+        &self,
+        mut ms_seq: Vec<u8>,
+        width: usize,
+        stats: &Stats,
+    ) -> Box<dyn Index<SV>> {
         stats.set_val("index", Value::String("SA".to_string()));
         stats.set("index_width", width);
         stats.set("index_store_ms_seq", self.store_ms_seq as u64);

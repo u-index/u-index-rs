@@ -6,7 +6,7 @@ use bio::data_structures::fmindex::{BackwardSearchResult, FMIndex, FMIndexable};
 use bio::data_structures::suffix_array::{suffix_array, SampledSuffixArray, SuffixArray};
 use itertools::Itertools;
 use mem_dbg::MemSize;
-use packed_seq::PackedSeq;
+use packed_seq::SeqVec;
 use tracing::{trace, warn};
 
 use crate::utils::{Stats, Timer};
@@ -61,13 +61,13 @@ impl FmBio {
     }
 }
 
-impl IndexBuilder for FmBioParams {
+impl<SV: SeqVec> IndexBuilder<SV> for FmBioParams {
     fn build_with_stats(
         &self,
         mut text: Vec<u8>,
         _width: usize,
         stats: &crate::utils::Stats,
-    ) -> Box<dyn Index> {
+    ) -> Box<dyn Index<SV>> {
         // Rust-bio expects a sentinel character at the end of the text.
         text.push(0);
 
@@ -95,12 +95,12 @@ impl IndexBuilder for FmBioParams {
     }
 }
 
-impl Index for FmBio {
+impl<SV: SeqVec> Index<SV> for FmBio {
     fn query(
         &self,
         pattern: &[u8],
-        _seq: PackedSeq,
-        _sketcher: &dyn crate::Sketcher,
+        _seq: SV::Seq<'_>,
+        _sketcher: &dyn crate::Sketcher<SV>,
     ) -> Box<dyn Iterator<Item = usize>> {
         let bsr = self.fm.backward_search(pattern.iter());
         let positions = match bsr {
