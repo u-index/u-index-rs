@@ -29,16 +29,10 @@ df["remap"] = df["sketch_remap"].fillna(-1).astype(int)
 df["k"] = df["sketch_k"].fillna(-1).astype(int)
 df["l"] = df["sketch_l"].fillna(-1).astype(int)
 
-# FIX k (TODO drop)
-df.loc[df.k == 32, "k"] = 4
-df.loc[df.k == 64, "k"] = 8
-df.loc[df.k == 128, "k"] = 15
-df.loc[df.k == 256, "k"] = 28
-
 # Remap=None becomes Remap=0 and Remap=1
 # (but not for sparse SA)
 dfr = df[(df.remap == -1) & (df["index"] != "sparse SA")]
-dfr["remap"] = 0
+dfr.loc[:, "remap"] = 0
 df = pd.concat([df, dfr])
 df.loc[df.remap == -1, "remap"] = 1
 
@@ -75,18 +69,13 @@ cols = [
     'mism/q',
 ]
 
-print(df.columns)
-
-df['kl_min'] = df.apply(lambda x: min(x.k, x.l), axis=1)
-df['kl_max'] = df.apply(lambda x: max(x.k, x.l), axis=1)
-df.loc[:, 'k'] = df['kl_min']
-df.loc[:, 'l'] = df['kl_max']
+# print(df.columns)
 
 def kl(row):
     if row.k<=0:
         return 'Plain text index'
     else:
-        return f"U-Index (k,$\ell$) = ({row.k}, {row.l})"
+        return f"U-Index (k,$\\ell$) = ({row.k}, {row.l})"
 df['kl'] = df.apply(kl, axis=1)
 
 def params(row):
@@ -113,7 +102,7 @@ order = [
 ]
 df['order'] = df['params'].apply(lambda x: order.index(x))
 
-df = df.groupby(['order', 'k']).first().reset_index()
+df = df.groupby(['order', 'kl']).first().reset_index()
 df.sort_values(by=['order', 'k'], inplace=True)
 
 dfc = df[cols]
@@ -145,9 +134,9 @@ g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], 
 fig.add_artist(legend)
 
 if file == "stats-english.json":
-    gx.set_ylim(2**3, 2**11)
-    gy.set_ylim(2**-2, 2**12)
-    gz.set_ylim(2**0, 2**14.5)
+    gx.set_ylim(2**2, 2**8.5)
+    gy.set_ylim(2**-4, 2**7)
+    gz.set_ylim(2**0, 2**12)
 else:
     gx.set_ylim(2**1, 2**11)
     gy.set_ylim(2**-2, 2**7)
