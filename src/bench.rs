@@ -26,7 +26,9 @@ impl<SV: SeqVec + 'static> UIndex<SV> {
             num_matches += self.query(self.seq.slice(s..e)).unwrap().count();
             i += 1;
             if i.is_power_of_two() {
-                trace!("Processed {i} queries with {num_matches} matches");
+                if i.trailing_zeros() % 4 == 0 {
+                    trace!("Processed {i} queries with {num_matches} matches");
+                }
             }
         }
         black_box(num_matches);
@@ -49,7 +51,9 @@ impl<SV: SeqVec> SIndex<SV> {
             num_matches += self.query(self.seq.slice(s..e)).unwrap().count();
             i += 1;
             if i.is_power_of_two() {
-                trace!("Processed {i} queries with {num_matches} matches");
+                if i.trailing_zeros() % 4 == 0 {
+                    trace!("Processed {i} queries with {num_matches} matches");
+                }
             }
         }
         black_box(num_matches);
