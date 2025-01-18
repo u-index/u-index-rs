@@ -106,6 +106,7 @@ fn run<SV: SeqVec>(
                 (sais_ms, id),
                 (sais_no_ms, id),
                 (awry32, id),
+                (sdsl_byte_32, id),
                 (sdsl_byte_32, id_skip),
             ]
         } else {
