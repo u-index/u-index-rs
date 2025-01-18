@@ -14,7 +14,7 @@ itertools = "0.13.0"
 libdivsufsort-rs = "0.1.4"
 libsais-rs = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/libsais-rs"}
 mem_dbg = "0.2.4"
-minimizers = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/minimizers", default-features = false}
+simd-minimizers = { version = "0.1.0", git = "https://github.com/rust-seq/simd-minimizers"}
 packed-seq = { version = "0.1.0", git = "https://github.com/rust-seq/packed-seq" }
 sdsl-lite-fm = { version = "0.1.0", path = "../sdsl-lite-fm" }
 num-traits = "0.2.19"

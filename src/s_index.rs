@@ -83,13 +83,9 @@ impl<SV: SeqVec> SIndex<SV> {
         let stats = Stats::default();
         let mut timer = Timer::new_stats("Sketch", &stats);
 
+        let w = l - k + 1;
         let mut minimizer_positions = vec![];
-        minimizers::simd::minimizer::minimizers_collect_and_dedup::<false>(
-            seq.as_slice(),
-            k,
-            l - k + 1,
-            &mut minimizer_positions,
-        );
+        simd_minimizers::minimizer_positions(seq.as_slice(), k, w, &mut minimizer_positions);
         timer.next("Build");
         eprintln!("Num minimizers: {}", minimizer_positions.len());
         eprintln!("Last minimizer: {:?}", minimizer_positions.last());
@@ -178,7 +174,7 @@ impl<SV: SeqVec> SIndex<SV> {
         }
 
         let offset =
-            minimizers::simd::minimizer::minimizer_window_naive(pattern.slice(0..self.l), self.k);
+            simd_minimizers::private::minimizers::minimizer(pattern.slice(0..self.l), self.k);
         assert!(offset < self.l);
 
         let t2 = std::time::Instant::now();
