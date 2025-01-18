@@ -17,43 +17,81 @@ fn main() {
     color_backtrace::install();
     *INIT_TRACE;
 
-    let query_length = 128;
-    let num_queries = 10000;
-    // let (seq, _ranges) = read_chromosomes::<PackedSeqVec>(1);
-    let seq = &std::fs::read("english.200MB").unwrap();
-    let queries = gen_query_positions(seq.len(), query_length, num_queries);
+    {
+        let (seq, _ranges) = read_chromosomes::<PackedSeqVec>(1);
 
-    let mut all_stats = vec![];
-    // run::<PackedSeqVec>(&mut all_stats, seq, query_length, &queries);
-    // run::<AsciiSeqVec>(&mut all_stats, seq, query_length, &queries);
-    run::<Vec<u8>>(&mut all_stats, seq, query_length, &queries);
+        let query_length = 512;
+        let num_queries = 10000;
+        let queries = gen_query_positions(seq.len(), query_length, num_queries);
 
-    // Write all_stats.
-    let stats_string = serde_json::to_string(&all_stats).unwrap();
-    std::fs::write("stats.json", stats_string).unwrap();
+        let mut all_stats = vec![];
+        run::<PackedSeqVec>(
+            &mut all_stats,
+            seq,
+            query_length,
+            &queries,
+            &[(0, 0), (4, 32), (8, 64), (16, 128), (28, 256)],
+        );
+
+        // Write all_stats.
+        let stats_string = serde_json::to_string(&all_stats).unwrap();
+        std::fs::write("stats.json", stats_string).unwrap();
+    }
+
+    {
+        let seq = std::fs::read("english.200MB").unwrap();
+
+        let query_length = 128;
+        let num_queries = 10000;
+        let queries = gen_query_positions(seq.len(), query_length, num_queries);
+
+        let mut all_stats = vec![];
+        run::<Vec<u8>>(
+            &mut all_stats,
+            seq,
+            query_length,
+            &queries,
+            &[(0, 0), (2, 20), (3, 24), (4, 32), (8, 64)],
+        );
+
+        // Write all_stats.
+        let stats_string = serde_json::to_string(&all_stats).unwrap();
+        std::fs::write("stats-english.json", stats_string).unwrap();
+    }
+
+    {
+        let seq = std::fs::read("proteins.200MB").unwrap();
+
+        let query_length = 128;
+        let num_queries = 10000;
+        let queries = gen_query_positions(seq.len(), query_length, num_queries);
+
+        let mut all_stats = vec![];
+        run::<Vec<u8>>(
+            &mut all_stats,
+            seq,
+            query_length,
+            &queries,
+            &[(0, 0), (2, 20), (3, 24), (4, 32), (8, 64)],
+        );
+
+        // Write all_stats.
+        let stats_string = serde_json::to_string(&all_stats).unwrap();
+        std::fs::write("stats-proteins.json", stats_string).unwrap();
+    }
 }
 
 fn run<SV: SeqVec>(
     all_stats: &mut Vec<HashMap<&str, Value>>,
-    seq: &[u8],
+    seq: SV,
     query_length: usize,
     queries: &Vec<(usize, usize)>,
+    kl: &[(usize, usize)],
 ) {
     tracing::warn!("{}", type_name::<SV>());
     let ranges = vec![0..seq.len()];
-    let seq = SV::from_ascii(seq);
 
-    for (k, l) in [
-        (0, 0),
-        (2, 16),
-        (2, 20),
-        (3, 20),
-        (3, 24),
-        (4, 28),
-        (4, 32),
-        (8, 56),
-        (8, 60),
-    ] {
+    for &(k, l) in kl {
         // SKETCHERS
         let id = &IdentityParams { skip_zero: false };
         let id_skip = &IdentityParams { skip_zero: true };
