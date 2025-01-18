@@ -16,15 +16,15 @@ fn main() {
     color_backtrace::install();
     *INIT_TRACE;
 
-    let query_length = 64;
+    let query_length = 128;
     let num_queries = 10000;
     // let (seq, _ranges) = read_chromosomes::<PackedSeqVec>(1);
     let seq = &std::fs::read("english.200MB").unwrap();
     let queries = gen_query_positions(seq.len(), query_length, num_queries);
 
     let mut all_stats = vec![];
-    run::<PackedSeqVec>(&mut all_stats, seq, query_length, &queries);
-    run::<AsciiSeqVec>(&mut all_stats, seq, query_length, &queries);
+    // run::<PackedSeqVec>(&mut all_stats, seq, query_length, &queries);
+    // run::<AsciiSeqVec>(&mut all_stats, seq, query_length, &queries);
     run::<Vec<u8>>(&mut all_stats, seq, query_length, &queries);
 
     // Write all_stats.
@@ -43,8 +43,15 @@ fn run<SV: SeqVec>(
     let seq = SV::from_ascii(seq);
 
     for (k, l) in [
-        (4, 16),
-        // (8, 64), (15, 128), (28, 256)
+        (0, 0),
+        (2, 16),
+        (2, 20),
+        (3, 20),
+        (3, 24),
+        (4, 28),
+        (4, 32),
+        (8, 56),
+        (8, 60),
     ] {
         // SKETCHERS
         let id = &IdentityParams { skip_zero: false };
@@ -94,21 +101,26 @@ fn run<SV: SeqVec>(
         let sdsl_int_32 = &FmSdslParams::<FmIndexInt32Ptr, _>::new();
         let sdsl_int_64 = &FmSdslParams::<FmIndexInt64Ptr, _>::new();
 
-        let params: Vec<(&dyn IndexBuilder<SV>, &dyn SketcherBuilder<SV>)> = vec![
-            // (sais_ms, id),
-            (sais_ms, min_no_remap),
-            // (sais_ms, min_remap),
-            // (sais_no_ms, id),
-            // (sais_no_ms, min_no_remap),
-            // (sais_no_ms, min_remap),
-            // (awry32, id),
-            // (awry32, min_no_remap),
-            // (awry32, min_remap),
-            // (sdsl_byte_32, id_skip),
-            // (sdsl_int_32, min_remap_skip),
-            // // TODO: SDSL without remap?
-            // // TODO: skip_zero_bytes for SDSL byte version
-        ];
+        let params: Vec<(&dyn IndexBuilder<SV>, &dyn SketcherBuilder<SV>)> = if k == 0 {
+            vec![
+                (sais_ms, id),
+                (sais_no_ms, id),
+                (awry32, id),
+                (sdsl_byte_32, id_skip),
+            ]
+        } else {
+            vec![
+                (sais_ms, min_no_remap),
+                (sais_ms, min_remap),
+                (sais_no_ms, min_no_remap),
+                (sais_no_ms, min_remap),
+                (awry32, min_no_remap),
+                (awry32, min_remap),
+                (sdsl_int_32, min_remap_skip),
+                // TODO: SDSL without remap?
+                // TODO: skip_zero_bytes for SDSL byte version
+            ]
+        };
 
         for (p, s) in params {
             tracing::warn!("Building UIndex with params {:?} {:?}", &*s, &*p);
@@ -131,7 +143,7 @@ fn run<SV: SeqVec>(
 
         // SIndex without sketching
 
-        if false {
+        if k == 0 {
             tracing::warn!("Building plain-text SIndex");
             let u = SIndex::build(seq.clone(), 1, 1);
 
@@ -155,7 +167,7 @@ fn run<SV: SeqVec>(
             );
             all_stats.push(stats);
         }
-        {
+        if k > 0 {
             tracing::warn!("Building minizer-space SIndex");
             let u = SIndex::build(seq.clone(), k, l);
             let query_time = {
