@@ -158,8 +158,8 @@ fn run<SV: SeqVec>(
                 "sketch_params",
                 Value::String(format!("SIndex {{ k: {k}, l: {l} }}")),
             );
-            stats.insert("sketch_l", Value::Number(Number::from(k)));
-            stats.insert("sketch_k", Value::Number(Number::from(l)));
+            stats.insert("sketch_l", Value::Number(Number::from(l)));
+            stats.insert("sketch_k", Value::Number(Number::from(k)));
             stats.insert("query_length", Value::Number(Number::from(query_length)));
             stats.insert(
                 "query_time",
@@ -175,14 +175,14 @@ fn run<SV: SeqVec>(
                 u.bench_positive(&queries)
             };
             let mut stats = u.stats();
-            stats.insert("index", Value::String("SIndex".to_string()));
+            stats.insert("index", Value::String("sparse SA".to_string()));
             stats.insert("index_params", Value::String("SIndex".to_string()));
             stats.insert(
                 "sketch_params",
                 Value::String(format!("SIndex {{ k: {k}, l: {l} }}")),
             );
-            stats.insert("sketch_l", Value::Number(Number::from(k)));
-            stats.insert("sketch_k", Value::Number(Number::from(l)));
+            stats.insert("sketch_l", Value::Number(Number::from(l)));
+            stats.insert("sketch_k", Value::Number(Number::from(k)));
             stats.insert("query_length", Value::Number(Number::from(query_length)));
             stats.insert(
                 "query_time",
