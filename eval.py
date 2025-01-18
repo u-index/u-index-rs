@@ -8,8 +8,8 @@ from matplotlib.ticker import LogLocator
 from matplotlib.colors import to_rgba
 import re
 
-plt.style.use('ggplot')
-plt.rcParams['axes.facecolor'] = '#f7f7f7'
+plt.style.use("ggplot")
+plt.rcParams["axes.facecolor"] = "#f7f7f7"
 
 # Limit matplot lib print precision
 pd.set_option("display.precision", 2)
@@ -17,7 +17,9 @@ pd.set_option("display.float_format", "{:0.2f}".format)
 
 Q = 10000
 
-df = pd.read_json("stats.json")
+file = "stats-english.json"
+
+df = pd.read_json(file)
 df["seq_sz"] = df["seq_size_MB"]
 df["sketch_sz"] = df["sketch_size_MB"]
 df["index_sz"] = df["index_size_MB"]
@@ -25,6 +27,7 @@ df["total_sz"] = df["total_size_MB"]
 df["mism/q"] = (df["query_mismatches"] // df["queries"]).fillna(0).astype("Int64")
 df["remap"] = df["sketch_remap"].fillna(-1).astype(int)
 df["k"] = df["sketch_k"].fillna(-1).astype(int)
+df["l"] = df["sketch_l"].fillna(-1).astype(int)
 
 # FIX k (TODO drop)
 df.loc[df.k == 32, "k"] = 4
@@ -46,8 +49,6 @@ df.loc[df["index"] == "sdsl_lite_fm::FmIndexInt32Ptr", "index"] = "FM-sdsl"
 # Drop SDSL without remap
 df = df[~((df["index"] == "FM-sdsl") & (df["remap"] == 0))]
 
-
-df["l"] = df["sketch_l"].fillna(-1).astype(int)
 df["store_ms"] = df["index_store_ms_seq"].fillna(-1).astype(int)
 df["sa_sampl"] = df["index_sa_sampling"].fillna(-1).astype(int)
 df["int_width"] = df["index_width"].fillna(-1).astype(int)
@@ -59,7 +60,6 @@ df["invert%"] = (df["t_query_invert_pos"] / df["query_time"] * 100).astype(int)
 df["us/q"] = df["query_time"] / Q * 10**6
 df["search/q"] = df["t_query_search"] / Q * 10**6
 df["Total"] = df["Build"] + df["Sketch"]
-# print(df.columns)
 
 # fmt:off
 cols = [
@@ -75,8 +75,15 @@ cols = [
     'mism/q',
 ]
 
+print(df.columns)
+
+df['kl_min'] = df.apply(lambda x: min(x.k, x.l), axis=1)
+df['kl_max'] = df.apply(lambda x: max(x.k, x.l), axis=1)
+df.loc[:, 'k'] = df['kl_min']
+df.loc[:, 'l'] = df['kl_max']
+
 def kl(row):
-    if row.k==-1:
+    if row.k<=0:
         return 'Plain text index'
     else:
         return f"U-Index (k,$\ell$) = ({row.k}, {row.l})"
@@ -137,9 +144,15 @@ g2.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], 
 g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time spent in inner Locate'])
 fig.add_artist(legend)
 
-gx.set_ylim(2**1, 2**11)
-gy.set_ylim(2**-2, 2**7)
-gz.set_ylim(2**0, 2**16)
+if file == "stats-english.json":
+    gx.set_ylim(2**3, 2**11)
+    gy.set_ylim(2**-2, 2**12)
+    gz.set_ylim(2**0, 2**14.5)
+else:
+    gx.set_ylim(2**1, 2**11)
+    gy.set_ylim(2**-2, 2**7)
+    gz.set_ylim(2**0, 2**16)
+
 g1.set_yscale("log", base=2)
 g2.set_yscale("log", base=2)
 g3.set_yscale("log", base=2)
