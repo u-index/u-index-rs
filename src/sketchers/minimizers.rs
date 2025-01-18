@@ -101,7 +101,7 @@ impl<SV: SeqVec> SketcherBuilder<SV> for MinimizerParams {
         stats.set("sketch_skip_zero", self.skip_zero as u64);
 
         assert!(
-            self.k <= KmerVal::BITS as usize / 2,
+            self.k <= KmerVal::BITS as usize / SV::Seq::BITS_PER_CHAR,
             "k={} is too large to fit k bytes in a u64",
             self.k
         );
@@ -126,11 +126,11 @@ impl<SV: SeqVec> SketcherBuilder<SV> for MinimizerParams {
                     id += 1;
                 }
             }
-            trace!("Num distinct minimizers: {}", id);
+            info!("Num distinct minimizers: {}", id);
             stats.set("num_distinct_minimizers", id);
             // When there is only a unique kmer as minimizer, use at least 1 byte still.
             let kmer_width_bits = id.next_power_of_two().trailing_zeros();
-            trace!("kmer_width: {kmer_width_bits} bits");
+            info!("kmer_width: {kmer_width_bits} bits");
             stats.set("kmer_width_bits", kmer_width_bits);
             let kmer_width = kmer_width_bits.div_ceil(8).max(1) as usize;
             (kmer_map, kmer_width)
@@ -139,8 +139,10 @@ impl<SV: SeqVec> SketcherBuilder<SV> for MinimizerParams {
                 "Using raw minimizer values. Max: {}",
                 min_val.iter().max().unwrap_or(&0)
             );
-            stats.set("kmer_width_bits", 2 * self.k);
-            (HashMap::new(), self.k.div_ceil(4))
+            let kmer_width_bits = SV::Seq::BITS_PER_CHAR * self.k;
+            stats.set("kmer_width_bits", kmer_width_bits);
+            info!("kmer_width: {kmer_width_bits} bits");
+            (HashMap::new(), kmer_width_bits.div_ceil(8))
         };
         info!("kmer_width: {kmer_width} bytes");
         stats.set("kmer_width", kmer_width);
