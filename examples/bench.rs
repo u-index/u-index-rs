@@ -202,12 +202,19 @@ fn run<SV: SeqVec>(
             let stats = run_fn(|| {
                 tracing::warn!("Building UIndex with params {:?} {:?}", &*s, &*p);
 
+                let rss0 = max_rss();
+
                 let u = UIndex::<SV>::try_build_with_ranges(seq.clone(), &ranges, &*s, &*p)?;
+                let rss1 = max_rss();
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
                     u.bench_positive(&queries)
                 };
+                let rss2 = max_rss();
                 let mut stats = u.stats();
+                stats.insert("rss0", Value::Number(Number::from(rss0)));
+                stats.insert("rss1", Value::Number(Number::from(rss1)));
+                stats.insert("rss2", Value::Number(Number::from(rss2)));
                 stats.insert("sketch_params", Value::String(format!("{:?}", &*s)));
                 stats.insert("index_params", Value::String(format!("{:?}", &*p)));
                 stats.insert("query_length", Value::Number(Number::from(query_length)));
@@ -227,13 +234,19 @@ fn run<SV: SeqVec>(
         if k == 0 {
             let stats = run_fn(|| {
                 tracing::warn!("Building plain-text SIndex");
+                let rss0 = max_rss();
                 let u = SIndex::build(seq.clone(), 1, 1);
+                let rss1 = max_rss();
 
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
                     u.bench_positive(&queries)
                 };
+                let rss2 = max_rss();
                 let mut stats = u.stats();
+                stats.insert("rss0", Value::Number(Number::from(rss0)));
+                stats.insert("rss1", Value::Number(Number::from(rss1)));
+                stats.insert("rss2", Value::Number(Number::from(rss2)));
                 stats.insert("index", Value::String("sparse SA".to_string()));
                 stats.insert("index_params", Value::String("sparse SA".to_string()));
                 stats.insert(
@@ -256,12 +269,18 @@ fn run<SV: SeqVec>(
         if k > 0 {
             let stats = run_fn(|| {
                 tracing::warn!("Building minizer-space SIndex");
+                let rss0 = max_rss();
                 let u = SIndex::build(seq.clone(), k, l);
+                let rss1 = max_rss();
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
                     u.bench_positive(&queries)
                 };
+                let rss2 = max_rss();
                 let mut stats = u.stats();
+                stats.insert("rss0", Value::Number(Number::from(rss0)));
+                stats.insert("rss1", Value::Number(Number::from(rss1)));
+                stats.insert("rss2", Value::Number(Number::from(rss2)));
                 stats.insert("index", Value::String("sparse SA".to_string()));
                 stats.insert("index_params", Value::String("SIndex".to_string()));
                 stats.insert(
@@ -326,4 +345,14 @@ fn run_fn(
         // Just run directly here.
         f()
     }
+}
+
+fn max_rss() -> usize {
+    let rusage = unsafe {
+        let mut rusage = std::mem::MaybeUninit::uninit();
+        libc::getrusage(libc::RUSAGE_SELF, rusage.as_mut_ptr());
+        rusage.assume_init()
+    };
+    // On linux, the returned value is in kB.
+    rusage.ru_maxrss as usize * 1024
 }
