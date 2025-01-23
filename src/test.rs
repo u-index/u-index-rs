@@ -15,7 +15,7 @@ fn test_identity_simple() {
         store_ms_seq: true,
         compress: true,
     };
-    let uindex = UIndex::build(seq, sketcher, ms_index);
+    let uindex = UIndex::build(&seq, sketcher, ms_index);
     let query = PackedSeqVec::from_ascii(b"ACGT");
     let mut occ = uindex.query(query.as_slice()).unwrap().collect::<Vec<_>>();
     occ.sort();
@@ -29,7 +29,7 @@ fn test_identity_positive() {
         store_ms_seq: true,
         compress: true,
     };
-    let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+    let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
         let len = rand::random::<usize>() % 100;
         let pos = rand::random::<usize>() % (seq.len() - len);
@@ -49,7 +49,7 @@ fn test_identity_negative() {
         store_ms_seq: true,
         compress: true,
     };
-    let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+    let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
         let len = 32;
         let query = PackedSeqVec::random(len);
@@ -79,7 +79,7 @@ fn test_minspace_positive() {
                     cacheline_ef: false,
                     skip_zero: false,
                 };
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+                let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
                     let len = l + rand::random::<usize>() % 100;
                     let pos = rand::random::<usize>() % (seq.len() - len);
@@ -104,7 +104,7 @@ fn test_minspace_negative() {
         store_ms_seq: true,
         compress: true,
     };
-    let index = UIndex::build(seq.clone(), sketcher, ms_index);
+    let index = UIndex::build(&seq, sketcher, ms_index);
 
     for remap in [false, true] {
         for l in [10, 100] {
@@ -119,7 +119,7 @@ fn test_minspace_negative() {
                     cacheline_ef: false,
                     skip_zero: false,
                 };
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+                let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
                     let len = l + rand::random::<usize>() % 100;
                     let query = PackedSeqVec::random(len);
@@ -143,7 +143,7 @@ fn test_identity_positive_noms() {
         store_ms_seq: false,
         compress: true,
     };
-    let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+    let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
         let len = rand::random::<usize>() % 100;
         let pos = rand::random::<usize>() % (seq.len() - len);
@@ -163,7 +163,7 @@ fn test_identity_negative_noms() {
         store_ms_seq: false,
         compress: true,
     };
-    let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+    let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
         let len = 16;
         let query = PackedSeqVec::random(len);
@@ -193,7 +193,7 @@ fn test_minspace_positive_noms() {
                     cacheline_ef: false,
                     skip_zero: false,
                 };
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+                let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
                     let len = l + rand::random::<usize>() % 100;
                     let pos = rand::random::<usize>() % (seq.len() - len);
@@ -218,7 +218,7 @@ fn test_minspace_negative_noms() {
         store_ms_seq: false,
         compress: true,
     };
-    let index = UIndex::build(seq.clone(), sketcher, ms_index);
+    let index = UIndex::build(&seq, sketcher, ms_index);
 
     for remap in [false] {
         for l in [10, 100] {
@@ -233,7 +233,7 @@ fn test_minspace_negative_noms() {
                     cacheline_ef: false,
                     skip_zero: false,
                 };
-                let uindex = UIndex::build(seq.clone(), sketcher, ms_index);
+                let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
                     let len = l + rand::random::<usize>() % 100;
                     let query = PackedSeqVec::random(len);
@@ -299,7 +299,7 @@ fn human_genome() {
                     store_ms_seq: store_seq,
                     compress,
                 };
-                let uindex = UIndex::build_with_ranges(seq.clone(), &ranges, sketcher, ms_index);
+                let uindex = UIndex::build_with_ranges(&seq, &ranges, sketcher, ms_index);
                 timer.next("Query");
                 for _ in 0..100000 {
                     let pos = rand::random::<usize>() % (seq.len() - ql);

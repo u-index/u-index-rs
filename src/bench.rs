@@ -15,7 +15,7 @@ pub fn gen_query_positions<'i>(n: usize, len: usize, count: usize) -> Vec<(usize
         .collect::<Vec<_>>()
 }
 
-impl<SV: SeqVec + 'static> UIndex<SV> {
+impl<'s, SV: SeqVec + 'static> UIndex<'s, SV> {
     /// Take `count` random substrings with length `len` and time querying them.
     pub fn bench_positive(&self, queries: &[(usize, usize)]) -> f64 {
         let start = std::time::Instant::now();

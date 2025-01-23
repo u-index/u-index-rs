@@ -9,8 +9,8 @@ use tracing::{info, trace};
 use crate::{traits::*, utils::*};
 
 #[derive(MemSize)]
-pub struct UIndex<SV: SeqVec> {
-    pub(crate) seq: SV,
+pub struct UIndex<'s, SV: SeqVec> {
+    pub(crate) seq: &'s SV,
     sketcher: Box<dyn Sketcher<SV>>,
     ms_index: Box<dyn Index<SV>>,
     pub(crate) query_stats: RefCell<QueryStats>,
@@ -49,7 +49,7 @@ pub struct QueryStats {
     pub t_ranges: usize,
 }
 
-impl<SV: SeqVec> Drop for UIndex<SV> {
+impl<'s, SV: SeqVec> Drop for UIndex<'s, SV> {
     fn drop(&mut self) {
         let QueryStats {
             mut queries,
@@ -96,9 +96,9 @@ t_ranges          {t_ranges:>9} ns/query"
     }
 }
 
-impl<SV: SeqVec + 'static> UIndex<SV> {
+impl<'s, SV: SeqVec + 'static> UIndex<'s, SV> {
     pub fn build(
-        seq: SV,
+        seq: &'s SV,
         sketch_params: &dyn SketcherBuilder<SV>,
         index_params: &dyn IndexBuilder<SV>,
     ) -> Self {
@@ -107,7 +107,7 @@ impl<SV: SeqVec + 'static> UIndex<SV> {
     }
 
     pub fn build_with_ranges(
-        seq: SV,
+        seq: &'s SV,
         ranges: &[Range<usize>],
         sketch_params: &dyn SketcherBuilder<SV>,
         index_params: &dyn IndexBuilder<SV>,
@@ -119,7 +119,7 @@ impl<SV: SeqVec + 'static> UIndex<SV> {
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
     pub fn try_build_with_ranges(
-        seq: SV,
+        seq: &'s SV,
         ranges: &[Range<usize>],
         sketch_params: &dyn SketcherBuilder<SV>,
         index_params: &dyn IndexBuilder<SV>,

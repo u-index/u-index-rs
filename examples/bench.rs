@@ -204,7 +204,7 @@ fn run<SV: SeqVec>(
 
                 let rss0 = max_rss();
 
-                let u = UIndex::<SV>::try_build_with_ranges(seq.clone(), &ranges, &*s, &*p)?;
+                let u = UIndex::<SV>::try_build_with_ranges(&seq, &ranges, &*s, &*p)?;
                 let rss1 = max_rss();
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
