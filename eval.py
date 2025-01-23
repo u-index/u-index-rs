@@ -26,6 +26,9 @@ def plot(suffix):
     df["sketch_sz"] = df["sketch_size_MB"]
     df["index_sz"] = df["index_size_MB"]
     df["total_sz"] = df["total_size_MB"]
+    df["rss0"] = df["rss0"] / (1024 * 1024)
+    df["rss1"] = df["rss1"] / (1024 * 1024)
+    df["rss2"] = df["rss2"] / (1024 * 1024)
     df["mism/q"] = (df["query_mismatches"] // df["queries"]).fillna(0).astype("Int64")
     df["remap"] = df["sketch_remap"].fillna(-1).astype(int)
     df["k"] = df["sketch_k"].fillna(-1).astype(int)
@@ -120,14 +123,15 @@ def plot(suffix):
     df['test'] = df['total_sz'] / 2
 
     # 3x3 grid of figures
-    fig, axs = plt.subplots(3, 1, figsize=(13, 11))
+    fig, axs = plt.subplots(4, 1, figsize=(17, 11))
     g1 = sns.barplot(data=df, hue='kl', y='total_sz', x='params', ax=axs[0], legend=False)
     gx = sns.barplot(data=df, hue='kl', y='sketch_sz', x='params', ax=axs[0], alpha=0.3, color='black', legend=False)
-    g2 = sns.barplot(data=df, hue='kl', y='Total', x='params', ax=axs[1], legend=False)
-    gy = sns.barplot(data=df, hue='kl', y='Sketch', x='params', ax=axs[1], alpha=0.3, color='black', legend=False)
-    g3 = sns.barplot(data=df, hue='kl', y='us/q', x='params', ax=axs[2])
-    gz = sns.barplot(data=df, hue='kl', y='search/q', x='params', ax=axs[2], alpha=0.3, color='black', legend=False)
-    # g4 = sns.barplot(data=df, hue='kl', y='int_width', x='params', ax=axs[3])
+    g2 = sns.barplot(data=df, hue='kl', y='Total', x='params', ax=axs[2], legend=False)
+    gy = sns.barplot(data=df, hue='kl', y='Sketch', x='params', ax=axs[2], alpha=0.3, color='black', legend=False)
+    g3 = sns.barplot(data=df, hue='kl', y='us/q', x='params', ax=axs[3])
+    gz = sns.barplot(data=df, hue='kl', y='search/q', x='params', ax=axs[3], alpha=0.3, color='black', legend=False)
+    g4 = sns.barplot(data=df, hue='kl', y='rss1', x='params', ax=axs[1], legend=False)
+    g4b = sns.barplot(data=df, hue='kl', y='rss0', x='params', ax=axs[1], alpha=0.3, color='black', legend=False)
 
     legend = g3.legend(loc='lower center', bbox_to_anchor=(.5,-0.30), ncol=5, title='', frameon=False)
 
@@ -135,6 +139,7 @@ def plot(suffix):
     g1.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Size of minimizer positions and remap'], loc='upper right')
     g2.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time sketching the input'], loc='upper right')
     g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time spent in inner Locate'])
+    g4.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Initial memory usage'])
     fig.add_artist(legend)
 
     # if file == "stats-english.json":
@@ -145,33 +150,40 @@ def plot(suffix):
     gx.set_ylim(2**3, 2**11)
     gy.set_ylim(2**-2.5, 2**13)
     gz.set_ylim(2**0, 2**16)
+    g4b.set_ylim(2**8.5, 2**14.5)
 
     g1.set_yscale("log", base=2)
     g2.set_yscale("log", base=2)
     g3.set_yscale("log", base=2)
+    g4.set_yscale("log", base=2)
 
     # Minor ticks at every power of 2
     g1.yaxis.set_minor_locator(LogLocator(base=2.0, subs='all',numticks=20))
     g2.yaxis.set_minor_locator(LogLocator(base=2.0, subs='all',numticks=20))
     g3.yaxis.set_minor_locator(LogLocator(base=2.0, subs='all',numticks=20))
+    g4.yaxis.set_minor_locator(LogLocator(base=2.0, subs='all',numticks=20))
 
     # horizontal grid on
     g1.grid(axis='y', linewidth=0.5)
     g2.grid(axis='y', linewidth=0.5)
     g3.grid(axis='y', linewidth=0.5)
+    g4.grid(axis='y', linewidth=0.5)
     # g4.grid(axis='y', linewidth=0.5)
     g1.grid(axis='y', linewidth=0.2, which='minor')
     g2.grid(axis='y', linewidth=0.2, which='minor')
     g3.grid(axis='y', linewidth=0.2, which='minor')
+    g4.grid(axis='y', linewidth=0.2, which='minor')
 
 
     g1.set_xlabel('')
     g2.set_xlabel('')
     g3.set_xlabel('')
+    g4.set_xlabel('')
     # g3.set_xlabel('Index.   -H: skip remap, -S: implicit minimizer seq')
     g1.set_ylabel('Size (MB)')
     g2.set_ylabel('Build (s)')
     g3.set_ylabel('Query (us)')
+    g4.set_ylabel('Build memory (MB)')
 
     fig.savefig(f"plot{suffix}.pdf", bbox_inches="tight")
     # fig.savefig(f"plot.svg", bbox_inches="tight")
