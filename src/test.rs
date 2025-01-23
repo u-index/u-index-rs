@@ -259,7 +259,7 @@ fn test_s_index() {
             if k > l {
                 continue;
             }
-            let sindex = SIndex::build(seq.clone(), k, l);
+            let sindex = SIndex::build(&seq, k, l);
             for it in 0..100 {
                 let len = l + rand::random::<usize>() % 100;
                 let pos = rand::random::<usize>() % (seq.len() - len);

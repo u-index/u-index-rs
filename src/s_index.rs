@@ -15,8 +15,8 @@ use sux::traits::SuccUnchecked;
 use tracing::{info, trace};
 
 #[derive(MemSize)]
-pub struct SIndex<SV: SeqVec> {
-    pub(crate) seq: SV,
+pub struct SIndex<'s, SV: SeqVec> {
+    pub(crate) seq: &'s SV,
     k: usize,
     l: usize,
     ssa: SparseSuffixArray,
@@ -25,7 +25,7 @@ pub struct SIndex<SV: SeqVec> {
     ranges: sux::dict::elias_fano::EfDict,
 }
 
-impl<SV: SeqVec> Drop for SIndex<SV> {
+impl<'s, SV: SeqVec> Drop for SIndex<'s, SV> {
     fn drop(&mut self) {
         let QueryStats {
             mut queries,
@@ -72,15 +72,15 @@ t_ranges          {t_ranges:>9} ns/query"
     }
 }
 
-impl<SV: SeqVec> SIndex<SV> {
-    pub fn build(seq: SV, k: usize, l: usize) -> Self {
+impl<'s, SV: SeqVec> SIndex<'s, SV> {
+    pub fn build(seq: &'s SV, k: usize, l: usize) -> Self {
         let ranges = vec![0..seq.len()];
         Self::build_with_ranges(seq, &ranges, k, l)
     }
 
     /// 1. Sketch input to minimizer space.
     /// 2. Build minimizer space index.
-    pub fn build_with_ranges(seq: SV, ranges: &[Range<usize>], k: usize, l: usize) -> Self {
+    pub fn build_with_ranges(seq: &'s SV, ranges: &[Range<usize>], k: usize, l: usize) -> Self {
         *INIT_TRACE;
         let stats = Stats::default();
         let mut timer = Timer::new_stats("Sketch", &stats).info();

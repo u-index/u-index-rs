@@ -39,7 +39,7 @@ impl<SV: SeqVec + 'static> UIndex<SV> {
 
 // Yes yes, this is just a plain copy of the corresponding UIndex code. I know.
 // TODO: Clean up into a single trait.
-impl<SV: SeqVec> SIndex<SV> {
+impl<'s, SV: SeqVec> SIndex<'s, SV> {
     /// Take `count` random substrings with length `len` and time querying them.
     pub fn bench_positive(&self, queries: &[(usize, usize)]) -> f64 {
         let start = std::time::Instant::now();

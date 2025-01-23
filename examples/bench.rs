@@ -235,7 +235,7 @@ fn run<SV: SeqVec>(
             let stats = run_fn(|| {
                 tracing::warn!("Building plain-text SIndex");
                 let rss0 = max_rss();
-                let u = SIndex::build(seq.clone(), 1, 1);
+                let u = SIndex::build(&seq, 1, 1);
                 let rss1 = max_rss();
 
                 let query_time = {
@@ -270,7 +270,7 @@ fn run<SV: SeqVec>(
             let stats = run_fn(|| {
                 tracing::warn!("Building minizer-space SIndex");
                 let rss0 = max_rss();
-                let u = SIndex::build(seq.clone(), k, l);
+                let u = SIndex::build(&seq, k, l);
                 let rss1 = max_rss();
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
