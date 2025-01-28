@@ -80,7 +80,7 @@ def plot(suffix):
         if row.k<=0:
             return 'Plain text index'
         else:
-            return f"U-Index (k,$\\ell$) = ({row.k}, {row.l})"
+            return f"(k,$\\ell$) = ({row.k}, {row.l})"
 
     df['kl'] = df.apply(kl, axis=1)
 
@@ -136,10 +136,10 @@ def plot(suffix):
     legend = g3.legend(loc='lower center', bbox_to_anchor=(.5,-0.30), ncol=5, title='', frameon=False)
 
     # Add one black box to the legend
-    g1.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Size of minimizer positions and remap'], loc='upper right')
-    g2.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time sketching the input'], loc='upper right')
-    g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Time spent in inner Locate'])
-    g4.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.5, edgecolor = 'none')], ['Initial memory usage'])
+    g1.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none')], ['Size of minimizer positions and remap'], loc='upper right')
+    g2.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none')], ['Time sketching the input'], loc='upper right')
+    g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none')], ['Time spent in inner Locate'])
+    g4.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none')], ['Initial memory usage'])
     fig.add_artist(legend)
 
     # if file == "stats-english.json":
@@ -180,10 +180,10 @@ def plot(suffix):
     g3.set_xlabel('')
     g4.set_xlabel('')
     # g3.set_xlabel('Index.   -H: skip remap, -S: implicit minimizer seq')
-    g1.set_ylabel('Size (MB)')
+    g1.set_ylabel('Size (MiB)')
     g2.set_ylabel('Build (s)')
     g3.set_ylabel('Query (us)')
-    g4.set_ylabel('Build memory (MB)')
+    g4.set_ylabel('Build memory (MiB)')
 
     fig.savefig(f"plot{suffix}.pdf", bbox_inches="tight")
     # fig.savefig(f"plot.svg", bbox_inches="tight")
