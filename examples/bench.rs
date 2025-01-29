@@ -1,6 +1,6 @@
 #![feature(lazy_get)]
 #![allow(unused)]
-use std::{any::type_name, cell::Cell, collections::HashMap, sync::LazyLock};
+use std::{any::type_name, cell::Cell, collections::HashMap, path::PathBuf, sync::LazyLock};
 
 use clap::Parser;
 use packed_seq::{AsciiSeqVec, PackedSeqVec, SeqVec};
@@ -8,7 +8,7 @@ use sdsl_lite_fm::*;
 use serde_json::{Number, Value};
 use tracing::info;
 use uindex::{
-    bench::gen_query_positions,
+    bench::gen_queries,
     indices::{DivSufSortSa, FmAwryParams, FmSdslParams, LibSaisSa},
     s_index::SIndex,
     sketchers::{IdentityParams, MinimizerParams},
@@ -23,6 +23,21 @@ struct Args {
     ext: bool,
     #[clap(long)]
     run_id: Option<usize>,
+
+    /// Plain-text input file.
+    #[clap(long)]
+    text: Option<PathBuf>,
+    /// Query patterns. One per line.
+    #[clap(long)]
+    patterns: Option<PathBuf>,
+    /// Output json file with statistics.
+    #[clap(long)]
+    output: Option<PathBuf>,
+
+    #[clap(short)]
+    k: Option<usize>,
+    #[clap(short)]
+    l: Option<usize>,
 }
 
 static ARGS: LazyLock<Args> = LazyLock::new(|| Args::parse());
@@ -35,21 +50,51 @@ fn main() {
     color_backtrace::install();
     *INIT_TRACE;
 
+    let mut kls = &[(0, 0), (4, 32), (8, 64), (16, 128), (28, 256)][..];
+
+    if ARGS.k.is_some() ^ ARGS.l.is_some() {
+        panic!("Both or none of k and l must be specified");
+    }
+
+    let kl = [(ARGS.k.unwrap_or_default(), ARGS.l.unwrap_or_default())];
+    if ARGS.k.is_some() {
+        kls = &kl[..];
+    }
+
+    if ARGS.patterns.is_some() ^ ARGS.text.is_some() {
+        panic!("Both or none of --text and --patterns must be specified.");
+    }
+
+    if let Some(text) = &ARGS.text {
+        let seq = std::fs::read(text).unwrap();
+
+        let pattern_data = std::fs::read(ARGS.patterns.as_ref().unwrap()).unwrap();
+        let queries = pattern_data
+            .split(|&c| c == b'\n')
+            .map(|x| x.to_vec())
+            .collect::<Vec<_>>();
+        let query_length = 0;
+
+        let mut all_stats = vec![];
+        run::<Vec<u8>>(&mut all_stats, &seq, query_length, &queries, kls);
+
+        let stats_string = serde_json::to_string(&all_stats).unwrap();
+        let path = PathBuf::from("stats.json");
+        let output = ARGS.output.as_ref().unwrap_or(&path);
+        std::fs::write(output, stats_string).unwrap();
+
+        return;
+    }
+
     if ARGS.run_id.is_none_or(|run_id| run_id < 1000) {
         let (seq, _ranges) = read_chromosomes::<PackedSeqVec>(1);
 
         let query_length = 512;
         let num_queries = 10000;
-        let queries = gen_query_positions(seq.len(), query_length, num_queries);
+        let queries = gen_queries::<PackedSeqVec>(&seq, query_length, num_queries);
 
         let mut all_stats = vec![];
-        run::<PackedSeqVec>(
-            &mut all_stats,
-            seq,
-            query_length,
-            &queries,
-            &[(0, 0), (4, 32), (8, 64), (16, 128), (28, 256)],
-        );
+        run::<PackedSeqVec>(&mut all_stats, &seq, query_length, &queries, kls);
 
         // Write all_stats.
         if ARGS.run_id.is_none() {
@@ -67,16 +112,10 @@ fn main() {
 
         let query_length = 128;
         let num_queries = 10000;
-        let queries = gen_query_positions(seq.len(), query_length, num_queries);
+        let queries = gen_queries::<Vec<u8>>(&seq, query_length, num_queries);
 
         let mut all_stats = vec![];
-        run::<Vec<u8>>(
-            &mut all_stats,
-            seq,
-            query_length,
-            &queries,
-            &[(0, 0), (2, 20), (3, 24), (4, 32), (8, 64)],
-        );
+        run::<Vec<u8>>(&mut all_stats, &seq, query_length, &queries, kls);
 
         // Write all_stats.
         if ARGS.run_id.is_none() {
@@ -94,16 +133,10 @@ fn main() {
 
         let query_length = 128;
         let num_queries = 10000;
-        let queries = gen_query_positions(seq.len(), query_length, num_queries);
+        let queries = gen_queries::<Vec<u8>>(&seq, query_length, num_queries);
 
         let mut all_stats = vec![];
-        run::<Vec<u8>>(
-            &mut all_stats,
-            seq,
-            query_length,
-            &queries,
-            &[(0, 0), (2, 20), (3, 24), (4, 32), (8, 64)],
-        );
+        run::<Vec<u8>>(&mut all_stats, &seq, query_length, &queries, kls);
 
         // Write all_stats.
         if ARGS.run_id.is_none() {
@@ -117,11 +150,11 @@ fn main() {
     }
 }
 
-fn run<SV: SeqVec>(
+fn run<'s, SV: SeqVec>(
     all_stats: &mut Vec<HashMap<&str, Value>>,
-    seq: SV,
+    seq: &'s SV,
     query_length: usize,
-    queries: &Vec<(usize, usize)>,
+    queries: &[SV],
     kl: &[(usize, usize)],
 ) {
     tracing::warn!("{}", type_name::<SV>());
@@ -208,7 +241,7 @@ fn run<SV: SeqVec>(
                 let rss1 = max_rss();
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
-                    u.bench_positive(&queries)
+                    u.bench(queries)
                 };
                 let rss2 = max_rss();
                 let mut stats = u.stats();
@@ -235,12 +268,12 @@ fn run<SV: SeqVec>(
             let stats = run_fn(|| {
                 tracing::warn!("Building plain-text SIndex");
                 let rss0 = max_rss();
-                let u = SIndex::build(&seq, 1, 1);
+                let u = SIndex::build(seq, 1, 1);
                 let rss1 = max_rss();
 
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
-                    u.bench_positive(&queries)
+                    u.bench(queries)
                 };
                 let rss2 = max_rss();
                 let mut stats = u.stats();
@@ -270,11 +303,11 @@ fn run<SV: SeqVec>(
             let stats = run_fn(|| {
                 tracing::warn!("Building minizer-space SIndex");
                 let rss0 = max_rss();
-                let u = SIndex::build(&seq, k, l);
+                let u = SIndex::build(seq, k, l);
                 let rss1 = max_rss();
                 let query_time = {
                     let _t = Timer::new("bench_positive").info();
-                    u.bench_positive(&queries)
+                    u.bench(&queries)
                 };
                 let rss2 = max_rss();
                 let mut stats = u.stats();

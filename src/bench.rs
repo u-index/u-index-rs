@@ -5,25 +5,28 @@ use packed_seq::SeqVec;
 use s_index::SIndex;
 use tracing::trace;
 
-/// Take `count` random substrings with length `len` and time querying them.
-pub fn gen_query_positions<'i>(n: usize, len: usize, count: usize) -> Vec<(usize, usize)> {
+pub fn gen_queries<'s, SV: SeqVec>(seq: &'s SV, len: usize, count: usize) -> Vec<SV> {
     (0..count)
         .map(|_| {
-            let pos = rand::random_range(..n - len);
-            (pos, pos + len)
+            let pos = rand::random_range(..seq.len() - len);
+            let mut sv = SV::default();
+            sv.push_seq(seq.slice(pos..pos + len));
+            sv
         })
         .collect::<Vec<_>>()
 }
 
 impl<'s, SV: SeqVec + 'static> UIndex<'s, SV> {
     /// Take `count` random substrings with length `len` and time querying them.
-    pub fn bench_positive(&self, queries: &[(usize, usize)]) -> f64 {
+    pub fn bench(&self, queries: &[SV]) -> f64 {
         let start = std::time::Instant::now();
 
         let mut num_matches = 0;
         let mut i = 0usize;
-        for &(s, e) in queries {
-            num_matches += self.query(self.seq.slice(s..e)).unwrap().count();
+        for seq in queries {
+            if let Some(locate_it) = self.query(seq.as_slice()) {
+                num_matches += locate_it.count();
+            }
             i += 1;
             if i.is_power_of_two() {
                 if i.trailing_zeros() % 4 == 0 {
@@ -41,14 +44,16 @@ impl<'s, SV: SeqVec + 'static> UIndex<'s, SV> {
 // TODO: Clean up into a single trait.
 impl<'s, SV: SeqVec> SIndex<'s, SV> {
     /// Take `count` random substrings with length `len` and time querying them.
-    pub fn bench_positive(&self, queries: &[(usize, usize)]) -> f64 {
+    pub fn bench(&self, queries: &[SV]) -> f64 {
         let start = std::time::Instant::now();
 
         let mut num_matches = 0;
 
         let mut i = 0usize;
-        for &(s, e) in queries {
-            num_matches += self.query(self.seq.slice(s..e)).unwrap().count();
+        for seq in queries {
+            if let Some(locate_it) = self.query(seq.as_slice()) {
+                num_matches += locate_it.count();
+            }
             i += 1;
             if i.is_power_of_two() {
                 if i.trailing_zeros() % 4 == 0 {
