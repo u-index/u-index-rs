@@ -9,7 +9,7 @@ use tracing::trace;
 pub fn gen_query_positions<'i>(n: usize, len: usize, count: usize) -> Vec<(usize, usize)> {
     (0..count)
         .map(|_| {
-            let pos = rand::random::<usize>() % (n - len);
+            let pos = rand::random_range(..n - len);
             (pos, pos + len)
         })
         .collect::<Vec<_>>()

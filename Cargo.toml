@@ -10,12 +10,12 @@ incremental = true
 
 [dependencies]
 cacheline-ef = { git = "https://github.com/ragnargrootkoerkamp/cacheline-ef" }
-itertools = "0.13.0"
+itertools = "0.14.0"
 libdivsufsort-rs = "0.1.4"
 libsais-rs = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/libsais-rs"}
 mem_dbg = "0.2.4"
-simd-minimizers = { version = "0.1.0", git = "https://github.com/rust-seq/simd-minimizers"}
-packed-seq = { version = "0.1.0", git = "https://github.com/rust-seq/packed-seq" }
+simd-minimizers = "1.0"
+packed-seq = "1.0"
 sdsl-lite-fm = { version = "0.1.0", path = "../sdsl-lite-fm" }
 num-traits = "0.2.19"
 sux = "0.4.4"
@@ -23,10 +23,10 @@ tracing = { version = "0.1.40", features = ["log"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 bio = "2.0.3"
 # bio = { version = "2.0.3", path = "../forks/rust-bio" }
-awry = "0.2"
+awry = "0.3"
 
 # Also used via python interface.
-rand = "0.8.5"
+rand = "0.9.0"
 needletail = "0.6.1"
 color-backtrace = "0.6.1"
 serde_json = "1.0.135"

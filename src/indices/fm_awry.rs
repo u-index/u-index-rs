@@ -41,7 +41,7 @@ impl<SV: SeqVec> IndexBuilder<SV> for FmAwryParams {
 
         let mut fasta = b">seq\n".to_vec();
         if !explode {
-            fasta.extend(text.iter().copied().map(|x| packed_seq::unpack(x)));
+            fasta.extend(text.iter().copied().map(|x| packed_seq::unpack_base(x)));
         } else {
             // AWRY does not support generic u8/ASCII alphabet, so we 'explode' each byte into 4 DNA characters.
             let unpacked = PackedSeq {
@@ -90,7 +90,7 @@ impl<SV: SeqVec> Index<SV> for FmAwry {
                 pattern
                     .iter()
                     .copied()
-                    .map(|x| packed_seq::unpack(x))
+                    .map(|x| packed_seq::unpack_base(x))
                     .collect_vec()
             } else {
                 PackedSeq {

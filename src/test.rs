@@ -31,8 +31,8 @@ fn test_identity_positive() {
     };
     let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
-        let len = rand::random::<usize>() % 100;
-        let pos = rand::random::<usize>() % (seq.len() - len);
+        let len: usize = rand::random_range(..100);
+        let pos = rand::random_range(..seq.len() - len);
         let query = seq.slice(pos..pos + len);
         let occ = uindex.query(query).unwrap().collect::<Vec<_>>();
         assert!(occ.contains(&pos));
@@ -81,8 +81,8 @@ fn test_minspace_positive() {
                 };
                 let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
-                    let len = l + rand::random::<usize>() % 100;
-                    let pos = rand::random::<usize>() % (seq.len() - len);
+                    let len: usize = rand::random_range(l..l + 100);
+                    let pos = rand::random_range(..seq.len() - len);
                     let query = seq.slice(pos..pos + len);
 
                     let uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
@@ -121,7 +121,7 @@ fn test_minspace_negative() {
                 };
                 let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
-                    let len = l + rand::random::<usize>() % 100;
+                    let len: usize = rand::random_range(l..l + 100);
                     let query = PackedSeqVec::random(len);
 
                     let mut index_occ = index.query(query.as_slice()).unwrap().collect::<Vec<_>>();
