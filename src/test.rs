@@ -145,7 +145,7 @@ fn test_identity_positive_noms() {
     };
     let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
-        let len = rand::random::<usize>() % 100;
+        let len = rand::random_range(..100);
         let pos = rand::random::<usize>() % (seq.len() - len);
         let query = seq.slice(pos..pos + len);
         let occ = uindex.query(query).unwrap().collect::<Vec<_>>();
@@ -195,8 +195,8 @@ fn test_minspace_positive_noms() {
                 };
                 let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
-                    let len = l + rand::random::<usize>() % 100;
-                    let pos = rand::random::<usize>() % (seq.len() - len);
+                    let len = l + rand::random_range(..100);
+                    let pos = rand::random_range(..seq.len() - len);
                     let query = seq.slice(pos..pos + len);
 
                     let uindex_occ = uindex.query(query).unwrap().collect::<Vec<_>>();
