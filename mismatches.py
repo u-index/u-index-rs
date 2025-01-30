@@ -29,4 +29,4 @@ with open("/home/blla008/Documents/u-index-rs/HG002") as file:
 		
 		
 	mis = open("/home/blla008/Documents/u-index-rs/16,128", 'a')
-	mis.write( mismatches ")
+	mis.write( mismatches )
