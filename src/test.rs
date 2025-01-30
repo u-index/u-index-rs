@@ -145,8 +145,8 @@ fn test_identity_positive_noms() {
     };
     let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
-        let len = rand::random_range(..100);
-        let pos = rand::random::<usize>() % (seq.len() - len);
+        let len = rand::random_range(..100usize);
+        let pos = rand::random_range(..seq.len() - len);
         let query = seq.slice(pos..pos + len);
         let occ = uindex.query(query).unwrap().collect::<Vec<_>>();
         assert!(occ.contains(&pos));
@@ -195,7 +195,7 @@ fn test_minspace_positive_noms() {
                 };
                 let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
-                    let len = l + rand::random_range(..100);
+                    let len = l + rand::random_range(..100usize);
                     let pos = rand::random_range(..seq.len() - len);
                     let query = seq.slice(pos..pos + len);
 
@@ -235,7 +235,7 @@ fn test_minspace_negative_noms() {
                 };
                 let uindex = UIndex::build(&seq, sketcher, ms_index);
                 for _ in 0..100 {
-                    let len = l + rand::random::<usize>() % 100;
+                    let len = l + rand::random_range(..100usize);
                     let query = PackedSeqVec::random(len);
 
                     let mut index_occ = index.query(query.as_slice()).unwrap().collect::<Vec<_>>();
@@ -261,8 +261,8 @@ fn test_s_index() {
             }
             let sindex = SIndex::build(&seq, k, l);
             for it in 0..100 {
-                let len = l + rand::random::<usize>() % 100;
-                let pos = rand::random::<usize>() % (seq.len() - len);
+                let len = l + rand::random_range(..100usize);
+                let pos = rand::random_range(..seq.len() - len);
                 let query = seq.slice(pos..pos + len);
 
                 let uindex_occ = sindex.query(query).unwrap().collect::<Vec<_>>();
@@ -302,7 +302,7 @@ fn human_genome() {
                 let uindex = UIndex::build_with_ranges(&seq, &ranges, sketcher, ms_index);
                 timer.next("Query");
                 for _ in 0..100000 {
-                    let pos = rand::random::<usize>() % (seq.len() - ql);
+                    let pos = rand::random_range(..seq.len() - ql);
                     let query = seq.slice(pos..pos + ql);
 
                     let bad_ranges_before = uindex.query_stats.borrow().bad_ranges;
