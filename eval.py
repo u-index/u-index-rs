@@ -51,6 +51,9 @@ def plot(suffix, bits, sz=0):
     # Drop SDSL without remap
     df = df[~((df["index"] == "FM-sdsl") & (df["remap"] == 0))]
 
+    # Drop sparse SA with k=l=0
+    df = df[~((df["index"] == "sparse SA") & (df["k"] == 0))]
+
     df["store_ms"] = df["index_store_ms_seq"].fillna(-1).astype(int)
     df["sa_sampl"] = df["index_sa_sampling"].fillna(-1).astype(int)
     df["int_width"] = df["index_width"].fillna(-1).astype(int)
