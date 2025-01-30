@@ -37,6 +37,9 @@ struct Args {
     k: Option<usize>,
     #[clap(short)]
     l: Option<usize>,
+
+    #[clap(long)]
+    dna: bool,
 }
 
 static ARGS: LazyLock<Args> = LazyLock::new(|| Args::parse());
@@ -65,8 +68,9 @@ fn main() {
     }
 
     if let Some(text) = &ARGS.text {
-        let seq = std::fs::read(text).unwrap();
+        let mut all_stats = vec![];
 
+        let seq = std::fs::read(text).unwrap();
         let pattern_data = std::fs::read(ARGS.patterns.as_ref().unwrap()).unwrap();
         let queries = pattern_data
             .split(|&c| c == b'\n')
@@ -74,8 +78,17 @@ fn main() {
             .collect::<Vec<_>>();
         let query_length = 0;
 
-        let mut all_stats = vec![];
-        run::<Vec<u8>>(&mut all_stats, &seq, query_length, &queries, kls);
+        if !ARGS.dna {
+            run::<Vec<u8>>(&mut all_stats, &seq, query_length, &queries, kls);
+        } else {
+            // Pack the data.
+            let seq = PackedSeqVec::from_ascii(&seq);
+            let queries = queries
+                .iter()
+                .map(|q| PackedSeqVec::from_ascii(q))
+                .collect::<Vec<_>>();
+            run::<PackedSeqVec>(&mut all_stats, &seq, query_length, &queries, kls);
+        }
 
         let stats_string = serde_json::to_string(&all_stats).unwrap();
         let path = PathBuf::from("stats.json");
