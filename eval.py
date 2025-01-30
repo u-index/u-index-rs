@@ -139,10 +139,14 @@ def plot(suffix, bits, sz=0):
     g4 = sns.barplot(data=df, hue='kl', y='rss1', x='params', ax=axs[1], legend=False)
     g4b = sns.barplot(data=df, hue='kl', y='rss0', x='params', ax=axs[1], alpha=0.3, color='black', legend=False)
 
+    if sz == 0:
+        sz = df['seq_sz'].unique()[0]
+    g1.axhline(sz, color="k", clip_on=False, linewidth=0.5)
+
     legend = g3.legend(loc='lower center', bbox_to_anchor=(.5,-0.30), ncol=5, title='', frameon=False)
 
     # Add one black box to the legend
-    g1.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none')], ['Size of minimizer positions and remap'], loc='upper right')
+    g1.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none'), matplotlib.lines.Line2D([0], [0], linewidth=1, color='black')], ['Size of minimizer positions and remap', f'Size of input text ({bits} bits per symbol)'], loc='upper right')
     g2.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none')], ['Time sketching the input'], loc='upper right')
     g3.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none')], ['Time spent in inner Locate'])
     g4.legend([plt.Rectangle((0,0),1,1,fc="black", alpha=0.4, edgecolor = 'none')], ['Initial memory usage'])
@@ -202,6 +206,7 @@ def plot(suffix, bits, sz=0):
     # fig.savefig("plot.pdf")
 
 
-plot("")
-plot("-english")
-plot("-proteins")
+plot("", bits=2)
+plot("-english", bits=8)
+# 200MiB of 5bit proteins is 125MiB
+plot("-proteins", bits=5, sz=125)
