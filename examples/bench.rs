@@ -1,4 +1,3 @@
-#![feature(lazy_get)]
 #![allow(unused)]
 use std::{any::type_name, cell::Cell, collections::HashMap, path::PathBuf, sync::LazyLock};
 
