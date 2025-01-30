@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import pandas as pd
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
 from pathlib import Path
 import tabulate
@@ -18,14 +19,16 @@ pd.set_option("display.float_format", "{:0.2f}".format)
 Q = 10000
 
 
-def plot(suffix):
+def plot(suffix, bits, sz=0):
     file = f"stats{suffix}.json"
 
     df = pd.read_json(file)
-    df["seq_sz"] = df["seq_size_MB"]
-    df["sketch_sz"] = df["sketch_size_MB"]
-    df["index_sz"] = df["index_size_MB"]
-    df["total_sz"] = df["total_size_MB"]
+    # Convert MB to MiB
+    df["seq_sz"] = df["seq_size_MB"] * 1000 * 1000 / (1024 * 1024)
+    df["sketch_sz"] = df["sketch_size_MB"] * 1000 * 1000 / (1024 * 1024)
+    df["index_sz"] = df["index_size_MB"] * 1000 * 1000 / (1024 * 1024)
+    df["total_sz"] = df["total_size_MB"] * 1000 * 1000 / (1024 * 1024)
+    # Convert B to MiB
     df["rss0"] = df["rss0"] / (1024 * 1024)
     df["rss1"] = df["rss1"] / (1024 * 1024)
     df["rss2"] = df["rss2"] / (1024 * 1024)
