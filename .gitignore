@@ -1,6 +1,9 @@
 /target
 /.env/
-/human-genome.fa
 .ipynb_checkpoints
 /flamegraph.svg
 /perf.data*
+/evals/human-genome.fa
+/evals/english.200MB
+/evals/proteins.200MB
+/evals/hg-long-reads
