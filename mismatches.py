@@ -1,32 +1,38 @@
 import os
 import sys
 
-block = 128 # change this to be the same size as l
+l = 64
+k = 8
 
-mismatches = 0
+total_mismatches = 0
+
 with open("/home/blla008/Documents/u-index-rs/HG002") as file:
-	while file:
-		line = file.readline()
-		l = line.rstrip()
-		
+	for line in file:
+		line_strip = line.rstrip()
+			
 		seqs = []
-		for idx in range(0, len(l), block):
-			seqs.append(l[idx : idx + block])
-				
-		f = open("/home/blla008/Documents/u-index-rs/sequence", "w")
+		for idx in range(0, len(line_strip), 128):
+			seqs.append(line_strip[idx : idx + 128])
+		
+		f = open("/home/blla008/Documents/u-index-rs/sequence", "a")
 
 		for seq in seqs:
 			f.write(seq+'\n')
 		f.close()
-			
-		os.system(r'cargo run -r --example bench -- --dna -k 16 -l 128 --text GRCh38.fna --patterns sequence')
-	
-		stats = open("/home/blla008/Documents/u-index-rs/stats.json", "r")
+				
+		os.system(r'cargo run -r --example bench -- --dna -k 8 -l 64  --text GRCh38.fna --patterns sequence')
 		
-		for line in stats:
-			if ('"query_matches":0.0' in line ):
-				mismatches = mismatches + 1
+		stats = open("/home/blla008/Documents/u-index-rs/stats.json", "r")	
 		
+		for line in stats:	
+			if( '"query_mismatches"' in line ):
+				x = line.find("query_mismatches")
+				a = line.find(':', x)
+				b = line.find(',', x)
+				try:
+					total_mismatches = total_mismatches + float( line[a+1:b] )
+				except:
+					total_mismatches = total_mismatches + float( line[a+1:b-1])
+				
+				print("Mismatches: ", str(total_mismatches) )
 		
-	mis = open("/home/blla008/Documents/u-index-rs/16,128", 'a')
-	mis.write( mismatches )
