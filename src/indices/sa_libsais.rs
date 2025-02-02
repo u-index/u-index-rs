@@ -30,7 +30,7 @@ impl<SV: SeqVec> IndexBuilder<SV> for LibSaisSa {
         stats.set("index_par", self.par as u64);
 
         trace!("MS sequence length {}", ms_seq.len());
-        stats.set("sequence length", ms_seq.len());
+        stats.set("ms_sequence_length", ms_seq.len());
 
         let _timer = Timer::new_stats("Building suffix array", stats);
 
