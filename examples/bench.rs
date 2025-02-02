@@ -70,23 +70,25 @@ fn main() {
     if let Some(text) = &ARGS.text {
         let mut all_stats = vec![];
 
-        let seq = std::fs::read(text).unwrap();
-        let pattern_data = std::fs::read(ARGS.patterns.as_ref().unwrap()).unwrap();
-        let queries = pattern_data
-            .split(|&c| c == b'\n')
-            .map(|x| x.to_vec())
-            .collect::<Vec<_>>();
-        let query_length = 0;
-
         if !ARGS.dna {
+            let seq = std::fs::read(text).unwrap();
+            let pattern_data = std::fs::read(ARGS.patterns.as_ref().unwrap()).unwrap();
+            let queries = pattern_data
+                .trim_ascii_end()
+                .split(|&c| c == b'\n')
+                .map(|x| x.to_vec())
+                .collect::<Vec<_>>();
+            let query_length = 0;
             run::<Vec<u8>>(&mut all_stats, &seq, query_length, &queries, kls);
         } else {
-            // Pack the data.
-            let seq = PackedSeqVec::from_ascii(&seq);
-            let queries = queries
-                .iter()
-                .map(|q| PackedSeqVec::from_ascii(q))
+            let (seq, _ranges) = read_chromosomes::<PackedSeqVec>(usize::MAX);
+            let pattern_data = std::fs::read(ARGS.patterns.as_ref().unwrap()).unwrap();
+            let queries = pattern_data
+                .trim_ascii_end()
+                .split(|&c| c == b'\n')
+                .map(PackedSeqVec::from_ascii)
                 .collect::<Vec<_>>();
+            let query_length = 0;
             run::<PackedSeqVec>(&mut all_stats, &seq, query_length, &queries, kls);
         }
 
