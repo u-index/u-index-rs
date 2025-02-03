@@ -2,6 +2,7 @@ use std::{
     cell::Cell,
     collections::HashMap,
     ops::Range,
+    path::Path,
     sync::{LazyLock, Mutex},
 };
 
@@ -135,6 +136,23 @@ impl Stats {
     }
 }
 
+pub fn read_fastq<SV: SeqVec>(path: &Path) -> Vec<SV> {
+    *INIT_TRACE;
+    let _timer = Timer::new("Reading");
+    let mut reads = vec![];
+    let mut reader = needletail::parse_fastx_file(path).unwrap();
+    while let Some(r) = reader.next() {
+        let text = r
+            .unwrap()
+            .seq()
+            .iter()
+            .filter_map(|&b| if b == b'N' { None } else { Some(b) })
+            .collect::<Vec<_>>();
+        reads.push(SV::from_ascii(&text));
+    }
+    reads
+}
+
 pub fn read_chromosomes<SV: SeqVec>(cnt_max: usize) -> (SV, Vec<Range<usize>>) {
     *INIT_TRACE;
     let _timer = Timer::new("Reading");
@@ -145,7 +163,13 @@ pub fn read_chromosomes<SV: SeqVec>(cnt_max: usize) -> (SV, Vec<Range<usize>>) {
     let mut ranges = vec![];
     let mut cnt = 0;
     while let Some(r) = reader.next() {
-        ranges.push(seq.push_ascii(&r.unwrap().seq()));
+        let text = r
+            .unwrap()
+            .seq()
+            .iter()
+            .filter_map(|&b| if b == b'N' { None } else { Some(b) })
+            .collect::<Vec<_>>();
+        ranges.push(seq.push_ascii(&text));
         cnt += 1;
         if cnt == cnt_max {
             break;
