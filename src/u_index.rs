@@ -13,7 +13,7 @@ pub struct UIndex<'s, SV: SeqVec> {
     pub(crate) seq: &'s SV,
     sketcher: Box<dyn Sketcher<SV>>,
     ms_index: Box<dyn Index<SV>>,
-    pub(crate) query_stats: RefCell<QueryStats>,
+    pub query_stats: RefCell<QueryStats>,
     stats: Stats,
     ranges: sux::dict::elias_fano::EfDict,
 }
@@ -77,7 +77,7 @@ impl<'s, SV: SeqVec> Drop for UIndex<'s, SV> {
 
         tracing::info!("mismatches:  {mismatches:>9}");
         tracing::info!("matches:     {matches:>9}");
-        tracing::trace!(
+        tracing::warn!(
             "QUERY STATS:
 queries           {queries:>9}
 too short         {too_short:>9}
@@ -206,6 +206,13 @@ impl<'s, SV: SeqVec + 'static> UIndex<'s, SV> {
         &'p self,
         pattern: SV::Seq<'p>,
     ) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
+        self.query_lim(pattern, None)
+    }
+    pub fn query_lim<'p>(
+        &'p self,
+        pattern: SV::Seq<'p>,
+        lim: Option<usize>,
+    ) -> Option<Box<dyn Iterator<Item = usize> + 'p>> {
         self.query_stats.borrow_mut().queries += 1;
         let t1 = std::time::Instant::now();
         let (ms_pattern, offset) = match self.sketcher.sketch(pattern) {
@@ -223,7 +230,8 @@ impl<'s, SV: SeqVec + 'static> UIndex<'s, SV> {
         self.query_stats.borrow_mut().t_sketch += t2.duration_since(t1).subsec_nanos() as usize;
         let ms_occ = self
             .ms_index
-            .query(&ms_pattern.0, self.seq.as_slice(), &*self.sketcher);
+            .query(&ms_pattern.0, self.seq.as_slice(), &*self.sketcher)
+            .take(lim.unwrap_or(usize::MAX));
         let t3 = std::time::Instant::now();
         self.query_stats.borrow_mut().t_search += t3.duration_since(t2).subsec_nanos() as usize;
         let mut last = t3;
