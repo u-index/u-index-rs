@@ -1,0 +1,2 @@
+long-reads:
+    cargo run -r --example long_read_mapping -- -k 8 -l 128 --ql 256 --reads hg-long-reads --lim 100 --max-matches 10
