@@ -3,12 +3,11 @@ use std::{any::type_name, cell::Cell, collections::HashMap, path::PathBuf, sync:
 
 use clap::Parser;
 use packed_seq::{unpack_base, AsciiSeqVec, PackedSeqVec, Seq, SeqVec};
-use sdsl_lite_fm::*;
 use serde_json::{from_slice, Number, Value};
 use tracing::{info, warn};
 use uindex::{
     bench::gen_queries,
-    indices::{DivSufSortSa, FmAwryParams, FmSdslParams, LibSaisSa},
+    indices::LibSaisSa,
     s_index::SIndex,
     sketchers::{IdentityParams, MinimizerParams},
     utils::{read_chromosomes, read_fastq, Timer, INIT_TRACE},

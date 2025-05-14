@@ -21,7 +21,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 # Big / datastructure dependencies
 sux = "0.7.4"
 sdsl-lite-fm = { version = "0.1.0", path = "../sdsl-lite-fm", optional = true }
-libdivsufsort-rs = "0.1.4"
+libdivsufsort-rs = { version = "0.1.4", optional = true }
 libsais-rs = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/libsais-rs"}
 
 bio = { version = "2.0.3", optional = true }

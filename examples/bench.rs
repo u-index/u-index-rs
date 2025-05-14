@@ -13,7 +13,7 @@ use uindex::indices::FmAwryParams;
 use uindex::indices::FmSdslParams;
 use uindex::{
     bench::gen_queries,
-    indices::{DivSufSortSa, LibSaisSa},
+    indices::LibSaisSa,
     s_index::SIndex,
     sketchers::{IdentityParams, MinimizerParams},
     utils::{read_chromosomes, Timer, INIT_TRACE},
