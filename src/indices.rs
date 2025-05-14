@@ -5,6 +5,7 @@
 mod fm_awry;
 #[cfg(feature = "bio")]
 mod fm_bio;
+#[cfg(feature = "sdsl-lite-fm")]
 mod fm_sdsl;
 mod sa_divsufsort;
 mod sa_libsais;
@@ -14,6 +15,7 @@ mod suffix_array;
 pub use fm_awry::FmAwryParams;
 #[cfg(feature = "bio")]
 pub use fm_bio::FmBioParams;
+#[cfg(feature = "sdsl-lite-fm")]
 pub use fm_sdsl::FmSdslParams;
 pub use sa_divsufsort::DivSufSortSa;
 pub use sa_libsais::LibSaisSa;

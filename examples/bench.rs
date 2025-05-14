@@ -3,14 +3,17 @@ use std::{any::type_name, cell::Cell, collections::HashMap, path::PathBuf, sync:
 
 use clap::Parser;
 use packed_seq::{AsciiSeqVec, PackedSeqVec, SeqVec};
+#[cfg(feature = "sdsl-lite-fm")]
 use sdsl_lite_fm::*;
 use serde_json::{Number, Value};
 use tracing::info;
 #[cfg(feature = "awry")]
 use uindex::indices::FmAwryParams;
+#[cfg(feature = "sdsl-lite-fm")]
+use uindex::indices::FmSdslParams;
 use uindex::{
     bench::gen_queries,
-    indices::{DivSufSortSa, FmSdslParams, LibSaisSa},
+    indices::{DivSufSortSa, LibSaisSa},
     s_index::SIndex,
     sketchers::{IdentityParams, MinimizerParams},
     utils::{read_chromosomes, Timer, INIT_TRACE},
@@ -222,9 +225,13 @@ fn run<'s, SV: SeqVec>(
         let awry32 = &FmAwryParams { sa_sampling: 32 };
         #[cfg(feature = "awry")]
         let awry64 = &FmAwryParams { sa_sampling: 64 };
+        #[cfg(feature = "sdsl-lite-fm")]
         let sdsl_byte_32 = &FmSdslParams::<FmIndexByte32Ptr, _>::new();
+        #[cfg(feature = "sdsl-lite-fm")]
         let sdsl_byte_64 = &FmSdslParams::<FmIndexByte64Ptr, _>::new();
+        #[cfg(feature = "sdsl-lite-fm")]
         let sdsl_int_32 = &FmSdslParams::<FmIndexInt32Ptr, _>::new();
+        #[cfg(feature = "sdsl-lite-fm")]
         let sdsl_int_64 = &FmSdslParams::<FmIndexInt64Ptr, _>::new();
 
         let params: Vec<(&dyn IndexBuilder<SV>, &dyn SketcherBuilder<SV>)> = if k == 0 {
@@ -233,7 +240,9 @@ fn run<'s, SV: SeqVec>(
                 (sais_no_ms, id),
                 #[cfg(feature = "awry")]
                 (awry32, id),
+                #[cfg(feature = "sdsl-lite-fm")]
                 (sdsl_byte_32, id),
+                #[cfg(feature = "sdsl-lite-fm")]
                 (sdsl_byte_32, id_skip),
             ]
         } else {
@@ -246,6 +255,7 @@ fn run<'s, SV: SeqVec>(
                 (awry32, min_no_remap),
                 #[cfg(feature = "awry")]
                 (awry32, min_remap),
+                #[cfg(feature = "sdsl-lite-fm")]
                 (sdsl_int_32, min_remap_skip),
                 // TODO: SDSL without remap?
                 // TODO: skip_zero_bytes for SDSL byte version
