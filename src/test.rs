@@ -1,4 +1,4 @@
-use indices::DivSufSortSa;
+use indices::LibSaisSa;
 use packed_seq::{PackedSeqVec, SeqVec};
 use s_index::SIndex;
 use sketchers::{IdentityParams, MinimizerParams};
@@ -11,9 +11,9 @@ use super::*;
 fn test_identity_simple() {
     let seq = PackedSeqVec::from_ascii(b"ACGTACGTACGTACGT");
     let sketcher = &IdentityParams { skip_zero: false };
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: true,
-        compress: true,
+        par: false,
     };
     let uindex = UIndex::build(&seq, sketcher, ms_index);
     let query = PackedSeqVec::from_ascii(b"ACGT");
@@ -25,9 +25,9 @@ fn test_identity_simple() {
 fn test_identity_positive() {
     let seq = PackedSeqVec::random(1000000);
     let sketcher = &IdentityParams { skip_zero: false };
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: true,
-        compress: true,
+        par: false,
     };
     let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
@@ -45,9 +45,9 @@ fn test_identity_positive() {
 fn test_identity_negative() {
     let seq = PackedSeqVec::random(1000000);
     let sketcher = &IdentityParams { skip_zero: false };
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: true,
-        compress: true,
+        par: false,
     };
     let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
@@ -61,9 +61,9 @@ fn test_identity_negative() {
 fn test_minspace_positive() {
     let seq = PackedSeqVec::random(1000000);
 
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: true,
-        compress: true,
+        par: false,
     };
 
     for remap in [false, true] {
@@ -100,9 +100,9 @@ fn test_minspace_negative() {
     let seq = PackedSeqVec::random(1000000);
 
     let sketcher = &IdentityParams { skip_zero: false };
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: true,
-        compress: true,
+        par: false,
     };
     let index = UIndex::build(&seq, sketcher, ms_index);
 
@@ -139,9 +139,9 @@ fn test_minspace_negative() {
 fn test_identity_positive_noms() {
     let seq = PackedSeqVec::random(1000000);
     let sketcher = &IdentityParams { skip_zero: false };
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: false,
-        compress: true,
+        par: false,
     };
     let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
@@ -159,9 +159,9 @@ fn test_identity_positive_noms() {
 fn test_identity_negative_noms() {
     let seq = PackedSeqVec::random(1000000);
     let sketcher = &IdentityParams { skip_zero: false };
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: false,
-        compress: true,
+        par: false,
     };
     let uindex = UIndex::build(&seq, sketcher, ms_index);
     for _ in 0..100 {
@@ -175,9 +175,9 @@ fn test_identity_negative_noms() {
 fn test_minspace_positive_noms() {
     let seq = PackedSeqVec::random(1000000);
 
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: false,
-        compress: true,
+        par: false,
     };
 
     for remap in [false] {
@@ -214,9 +214,9 @@ fn test_minspace_negative_noms() {
     let seq = PackedSeqVec::random(1000000);
 
     let sketcher = &IdentityParams { skip_zero: false };
-    let ms_index = &DivSufSortSa {
+    let ms_index = &LibSaisSa {
         store_ms_seq: false,
-        compress: true,
+        par: false,
     };
     let index = UIndex::build(&seq, sketcher, ms_index);
 
@@ -282,7 +282,6 @@ fn human_genome() {
     let (seq, ranges) = read_chromosomes::<PackedSeqVec>(1);
 
     let ql = 256;
-    let compress = true;
     for (k, l) in [(8, 32), (16, 64)] {
         for remap in [false, true] {
             for store_seq in [false, true] {
@@ -295,9 +294,9 @@ fn human_genome() {
                     cacheline_ef: false,
                     skip_zero: false,
                 };
-                let ms_index = &DivSufSortSa {
+                let ms_index = &LibSaisSa {
                     store_ms_seq: store_seq,
-                    compress,
+                    par: false,
                 };
                 let uindex = UIndex::build_with_ranges(&seq, &ranges, sketcher, ms_index);
                 timer.next("Query");
