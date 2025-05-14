@@ -50,7 +50,9 @@ impl MinimizerParams {
         // FIXME: Use SIMD implementation?
         // FIXME: Use iterator version?
         let mut out = vec![];
-        simd_minimizers::minimizer_positions_scalar(seq, k, w, &mut out);
+        // TODO: Use SIMD version once it supports non-byte offsets.
+        // See https://github.com/rust-seq/packed-seq/issues/5
+        simd_minimizers::scalar::minimizer_positions_scalar(seq, k, w, &mut out);
         out.into_iter().map(move |pos| {
             let pos = pos as usize;
             (
