@@ -15,7 +15,7 @@ genome. I use =chm13v2.0.fa=. Note that =examples/bench.rs= by default only
 reads chromosome 1, or more generally the first sequence in the fasta file.
 
 Note: If you have CMake >= 4.0 installed, you may have to explicitly set the 
-=CMAKE_POLICY_MINIMUM_VERSION= environment variable for =divsufsort_rs= to build.
+=CMAKE_POLICY_VERSION_MINIMUM= environment variable for =divsufsort_rs= to build.
 You can do this like so:
 
-=CMAKE_POLICY_MINIMUM_VERSION=3.5 cargo b --release=
+=CMAKE_POLICY_VERSION_MINIMUM=3.5 cargo b --release=
