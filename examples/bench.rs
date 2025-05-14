@@ -6,9 +6,11 @@ use packed_seq::{AsciiSeqVec, PackedSeqVec, SeqVec};
 use sdsl_lite_fm::*;
 use serde_json::{Number, Value};
 use tracing::info;
+#[cfg(feature = "awry")]
+use uindex::indices::FmAwryParams;
 use uindex::{
     bench::gen_queries,
-    indices::{DivSufSortSa, FmAwryParams, FmSdslParams, LibSaisSa},
+    indices::{DivSufSortSa, FmSdslParams, LibSaisSa},
     s_index::SIndex,
     sketchers::{IdentityParams, MinimizerParams},
     utils::{read_chromosomes, Timer, INIT_TRACE},
@@ -216,7 +218,9 @@ fn run<'s, SV: SeqVec>(
             store_ms_seq: false,
             par: false,
         };
+        #[cfg(feature = "awry")]
         let awry32 = &FmAwryParams { sa_sampling: 32 };
+        #[cfg(feature = "awry")]
         let awry64 = &FmAwryParams { sa_sampling: 64 };
         let sdsl_byte_32 = &FmSdslParams::<FmIndexByte32Ptr, _>::new();
         let sdsl_byte_64 = &FmSdslParams::<FmIndexByte64Ptr, _>::new();
@@ -227,6 +231,7 @@ fn run<'s, SV: SeqVec>(
             vec![
                 (sais_ms, id),
                 (sais_no_ms, id),
+                #[cfg(feature = "awry")]
                 (awry32, id),
                 (sdsl_byte_32, id),
                 (sdsl_byte_32, id_skip),
@@ -237,7 +242,9 @@ fn run<'s, SV: SeqVec>(
                 (sais_ms, min_remap),
                 (sais_no_ms, min_no_remap),
                 (sais_no_ms, min_remap),
+                #[cfg(feature = "awry")]
                 (awry32, min_no_remap),
+                #[cfg(feature = "awry")]
                 (awry32, min_remap),
                 (sdsl_int_32, min_remap_skip),
                 // TODO: SDSL without remap?

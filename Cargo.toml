@@ -23,7 +23,7 @@ tracing = { version = "0.1.40", features = ["log"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 bio = "2.0.3"
 # bio = { version = "2.0.3", path = "../forks/rust-bio" }
-awry = "0.3"
+awry = { version = "0.3", optional = true }
 
 # Also used via python interface.
 rand = "0.9.0"
