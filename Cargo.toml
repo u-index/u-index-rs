@@ -11,16 +11,19 @@ incremental = true
 [dependencies]
 cacheline-ef = "1.1"
 itertools = "0.14.0"
-libdivsufsort-rs = "0.1.4"
-libsais-rs = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/libsais-rs"}
 mem_dbg = "0.3.0"
 simd-minimizers = "1.1"
 packed-seq = "2.0"
-sdsl-lite-fm = { version = "0.1.0", path = "../sdsl-lite-fm" }
 num-traits = "0.2.19"
-sux = "0.7.4"
 tracing = { version = "0.1.40", features = ["log"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+
+# Big / datastructure dependencies
+sux = "0.7.4"
+sdsl-lite-fm = { version = "0.1.0", path = "../sdsl-lite-fm" }
+libdivsufsort-rs = "0.1.4"
+libsais-rs = { version = "0.1.0", git = "https://github.com/ragnargrootkoerkamp/libsais-rs"}
+
 bio = { version = "2.0.3", optional = true }
 awry = { version = "0.3", optional = true }
 
@@ -30,9 +33,6 @@ needletail = "0.6.1"
 color-backtrace = "0.7.0"
 serde_json = "1.0.135"
 libc = "0.2.169"
-# fxhash = "0.2.1"
-# size = "0.4.1"
-# rayon = "1.10.0"
 
 [dev-dependencies]
 clap = { version = "4.5.27", features = ["derive"] }
