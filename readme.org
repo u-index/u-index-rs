@@ -19,3 +19,10 @@ Note: If you have CMake >= 4.0 installed, you may have to explicitly set the
 You can do this like so:
 
 =CMAKE_POLICY_VERSION_MINIMUM=3.5 cargo b --release=
+
+** Paper
+
+U-Index: A Universal Indexing Framework for Matching Long Patterns\\
+/Lorraine A. K. Ayad, Gabriele Fici, Ragnar Groot Koerkamp, Grigorios Loukides, Rob Patro, Giulio Ermanno Pibiri, and Solon P. Pissis/
+
+SEA 2025, [[https://doi.org/10.4230/LIPIcs.SEA.2025.4][doi.org/10.4230/LIPIcs.SEA.2025.4]]
